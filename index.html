@@ -240,8 +240,9 @@ function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open("notaspe
   r.onsuccess=e=>{db=e.target.result;res();};r.onerror=e=>rej(e);});}
 function tx(store,mode){return db.transaction(store,mode).objectStore(store);}
 function dbGetAll(store){return new Promise(r=>{const out=[];tx(store,"readonly").openCursor().onsuccess=e=>{const c=e.target.result;if(c){out.push(c.value);c.continue();}else r(out);};});}
-function dbPut(store,val){return new Promise(r=>{tx(store,"readwrite").put(val).onsuccess=()=>r();});}
-function dbDel(store,id){return new Promise(r=>{tx(store,"readwrite").delete(id).onsuccess=()=>r();});}
+// put/delete attendono il COMMIT della transazione (oncomplete): dato durevole prima di risolvere
+function dbPut(store,val){return new Promise((res,rej)=>{const t=db.transaction(store,"readwrite");t.oncomplete=()=>res();t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error||new Error("abort"));t.objectStore(store).put(val);});}
+function dbDel(store,id){return new Promise((res,rej)=>{const t=db.transaction(store,"readwrite");t.oncomplete=()=>res();t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error||new Error("abort"));t.objectStore(store).delete(id);});}
 function dbGet(store,k){return new Promise(r=>{tx(store,"readonly").get(k).onsuccess=e=>r(e.target.result);});}
 
 /* ============ Stato ============ */
@@ -471,7 +472,12 @@ async function salvaSpesa(){
     note:$("#fNote").value.trim(),foto:pendingPhoto||null,
     created:editing?editing.created:Date.now()
   };
-  await dbPut("spese",s);
+  try{
+    await dbPut("spese",s);
+  }catch(e){
+    toast("Errore nel salvataggio: "+(e&&e.message?e.message:e));
+    return;
+  }
   await loadSpese();closeSheet();toast(editing?"Scontrino aggiornato":"Scontrino salvato ✓");
 }
 
@@ -730,7 +736,14 @@ $("#btnMail").onclick=preparaMail;
 
 /* ============ Avvio ============ */
 (async function(){
-  await openDB();await loadCfg();await loadSpese();showTab("spese");
+  // chiedi al browser di NON cancellare i dati (storage persistente)
+  try{ if(navigator.storage&&navigator.storage.persist){ await navigator.storage.persist(); } }catch(_){}
+  try{
+    await openDB();await loadCfg();await loadSpese();showTab("spese");
+  }catch(e){
+    showTab("spese");
+    toast("Attenzione: memoria non disponibile ("+(e&&e.message?e.message:e)+")");
+  }
 })();
 </script>
 </body>
