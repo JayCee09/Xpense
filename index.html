@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b5cab">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Nota Spese">
+<title>Nota Spese Bluenext</title>
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect width='180' height='180' rx='38' fill='%230b5cab'/%3E%3Ctext x='90' y='120' font-size='96' text-anchor='middle' fill='white' font-family='Arial'%3E%E2%82%AC%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --blu:#0b5cab; --blu-scuro:#083f77; --bg:#f4f6f9; --card:#ffffff;
+    --testo:#1c2530; --muted:#6b7684; --bordo:#e2e7ee; --ok:#1a8f4c; --warn:#c0392b; --warn-bg:#fdecea;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--testo);font-size:16px;line-height:1.4;padding-bottom:80px}
+  header{position:sticky;top:0;z-index:20;background:var(--blu);color:#fff;padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;display:flex;align-items:center;gap:10px}
+  header .logo{font-size:22px;font-weight:700}
+  header .sub{font-size:12px;opacity:.85;margin-top:-2px}
+  main{padding:14px;max-width:720px;margin:0 auto}
+  .card{background:var(--card);border:1px solid var(--bordo);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+  h2{font-size:15px;margin:0 0 10px;color:var(--blu-scuro);text-transform:uppercase;letter-spacing:.03em}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px;font-weight:600}
+  input,select,textarea{width:100%;padding:12px;border:1px solid var(--bordo);border-radius:10px;font-size:16px;background:#fff;color:var(--testo)}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blu)}
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+  button{cursor:pointer;font-family:inherit}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border:none;border-radius:12px;background:var(--blu);color:#fff;font-size:16px;font-weight:600}
+  .btn:active{background:var(--blu-scuro)}
+  .btn.secondary{background:#eef2f7;color:var(--blu-scuro)}
+  .btn.ghost{background:transparent;border:1px solid var(--bordo);color:var(--testo)}
+  .btn.danger{background:#fbecea;color:var(--warn)}
+  .btn.big{padding:18px;font-size:17px}
+  .fab{position:fixed;right:16px;bottom:calc(env(safe-area-inset-bottom) + 78px);width:auto;padding:16px 20px;border-radius:30px;box-shadow:0 6px 18px rgba(11,92,171,.4);z-index:15}
+  nav.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:#fff;border-top:1px solid var(--bordo);display:flex;padding-bottom:env(safe-area-inset-bottom)}
+  nav.tabbar button{flex:1;background:none;border:none;padding:10px 0 8px;color:var(--muted);font-size:11px;display:flex;flex-direction:column;align-items:center;gap:3px}
+  nav.tabbar button .ic{font-size:20px;line-height:1}
+  nav.tabbar button.active{color:var(--blu)}
+  .expense{display:flex;gap:12px;align-items:center;padding:12px;border:1px solid var(--bordo);border-radius:12px;margin-bottom:8px;background:#fff}
+  .expense .thumb{width:52px;height:52px;border-radius:9px;object-fit:cover;background:#eef2f7;flex:none}
+  .expense .info{flex:1;min-width:0}
+  .expense .info .t1{font-weight:600;font-size:15px}
+  .expense .info .t2{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .expense .amt{font-weight:700;font-size:15px;text-align:right;white-space:nowrap}
+  .badge{display:inline-block;font-size:11px;padding:2px 7px;border-radius:20px;background:#eef2f7;color:var(--blu-scuro);font-weight:600}
+  .badge.cena{background:#efe7fb;color:#5b3ba0}
+  .badge.over{background:var(--warn-bg);color:var(--warn)}
+  .muted{color:var(--muted)}
+  .small{font-size:13px}
+  .totbox{display:flex;justify-content:space-between;padding:8px 0;border-top:1px dashed var(--bordo)}
+  .totbox.grand{border-top:2px solid var(--blu);font-weight:700;font-size:17px;color:var(--blu-scuro)}
+  .hidden{display:none!important}
+  .overlay{position:fixed;inset:0;background:rgba(16,24,40,.5);z-index:40;display:flex;align-items:flex-end;justify-content:center}
+  .sheet{background:#fff;width:100%;max-width:720px;border-radius:18px 18px 0 0;max-height:92vh;overflow:auto;padding:16px 16px calc(env(safe-area-inset-bottom) + 16px)}
+  .sheet h2{display:flex;justify-content:space-between;align-items:center}
+  .sheet .close{background:none;border:none;font-size:26px;color:var(--muted);line-height:1}
+  .previewimg{width:100%;max-height:230px;object-fit:contain;background:#f0f3f7;border-radius:12px;margin:8px 0}
+  .ocrline{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin:6px 0}
+  .spinner{width:16px;height:16px;border:2px solid var(--bordo);border-top-color:var(--blu);border-radius:50%;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .warnrow{background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:8px 10px;font-size:13px;margin-top:8px;display:flex;gap:8px;align-items:flex-start}
+  .seg{display:flex;border:1px solid var(--bordo);border-radius:10px;overflow:hidden}
+  .seg button{flex:1;background:#fff;border:none;padding:11px;font-size:14px;color:var(--muted);font-weight:600}
+  .seg button.on{background:var(--blu);color:#fff}
+  .toast{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);background:#1c2530;color:#fff;padding:12px 18px;border-radius:24px;font-size:14px;z-index:60;box-shadow:0 6px 20px rgba(0,0,0,.3);opacity:0;transition:opacity .25s}
+  .toast.show{opacity:1}
+  .monthgroup{margin-bottom:6px}
+  .chk{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--bordo);border-radius:10px;margin-bottom:8px}
+  .chk input{width:20px;height:20px;flex:none}
+  .empty{text-align:center;color:var(--muted);padding:40px 10px}
+  .empty .ic{font-size:44px}
+  a.link{color:var(--blu);font-weight:600;text-decoration:none}
+  .infoline{font-size:12.5px;color:var(--muted);margin-top:6px}
+</style>
+</head>
+<body>
+<header>
+  <div style="flex:1">
+    <div class="logo">Nota Spese</div>
+    <div class="sub" id="hdrSub">Bluenext · rimborsi trasferta</div>
+  </div>
+</header>
+
+<main>
+  <!-- ===== TAB SPESE ===== -->
+  <section id="tab-spese">
+    <div class="card">
+      <h2>Spese registrate</h2>
+      <div id="filtroMese"></div>
+      <div id="listaSpese"></div>
+      <div id="totaliSpese"></div>
+    </div>
+  </section>
+
+  <!-- ===== TAB GENERA ===== -->
+  <section id="tab-genera" class="hidden">
+    <div class="card">
+      <h2>Genera rimborso</h2>
+      <p class="small muted">Seleziona il periodo da inviare. Puoi includere più mesi (es. Giugno + Luglio).</p>
+      <div id="meseChecks"></div>
+      <div id="riepilogoGen"></div>
+    </div>
+    <div class="card">
+      <h2>Documenti</h2>
+      <button class="btn big" id="btnGiust">📎 Genera PDF giustificativi (scontrini)</button>
+      <div style="height:10px"></div>
+      <button class="btn big secondary" id="btnNota">📄 Genera PDF nota spese</button>
+      <div style="height:14px"></div>
+      <button class="btn big" id="btnMail" style="background:var(--ok)">✉️ Prepara e-mail con allegati</button>
+      <div class="infoline">Oggetto e testo vengono precompilati. Gli allegati (i 2 PDF) si aprono nel foglio di condivisione: scegli Outlook / Mail per completare l'invio a <b>speseetrasferte@bluenext.it</b>.</div>
+    </div>
+  </section>
+
+  <!-- ===== TAB IMPOSTAZIONI ===== -->
+  <section id="tab-imp" class="hidden">
+    <div class="card">
+      <h2>Dati dipendente</h2>
+      <label>Cognome e Nome</label>
+      <input id="cfgDip" />
+      <label>Residenza / domicilio</label>
+      <input id="cfgRes" />
+      <label>Cliente / Sede predefinita</label>
+      <input id="cfgCliente" />
+      <label>E-mail destinatario rimborsi</label>
+      <input id="cfgEmail" />
+      <div style="height:8px"></div>
+      <div class="row">
+        <div><label>Tetto pranzo €</label><input id="cfgCapP" type="number" inputmode="decimal" step="0.01"/></div>
+        <div><label>Tetto cena €</label><input id="cfgCapC" type="number" inputmode="decimal" step="0.01"/></div>
+      </div>
+      <div style="height:12px"></div>
+      <button class="btn" id="btnSaveCfg">Salva impostazioni</button>
+    </div>
+    <div class="card">
+      <h2>Dati e backup</h2>
+      <button class="btn ghost" id="btnExport">⤓ Esporta backup (JSON)</button>
+      <div style="height:8px"></div>
+      <button class="btn danger" id="btnClear">🗑 Svuota spese del periodo selezionato</button>
+      <div class="infoline">I dati restano solo su questo dispositivo (nessun server). Fai un backup prima di svuotare, se vuoi conservarli.</div>
+    </div>
+    <div class="card">
+      <h2>Informazioni</h2>
+      <p class="small muted">Nota Spese Bluenext · app personale. L'OCR legge data e importo dallo scontrino: controlla sempre i valori prima di salvare. La prima scansione richiede connessione internet per caricare il motore OCR.</p>
+    </div>
+  </section>
+</main>
+
+<button class="btn fab" id="fabAdd">＋ Scontrino</button>
+
+<nav class="tabbar">
+  <button data-tab="spese" class="active"><span class="ic">🧾</span>Spese</button>
+  <button data-tab="genera"><span class="ic">📤</span>Genera</button>
+  <button data-tab="imp"><span class="ic">⚙️</span>Impostazioni</button>
+</nav>
+
+<!-- input fotocamera nascosto -->
+<input type="file" id="fileCam" accept="image/*" capture="environment" class="hidden" />
+
+<!-- ===== SHEET: nuovo/modifica scontrino ===== -->
+<div class="overlay hidden" id="sheetOverlay">
+  <div class="sheet">
+    <h2><span id="sheetTitle">Nuovo scontrino</span><button class="close" id="sheetClose">×</button></h2>
+    <img id="prev" class="previewimg hidden" />
+    <div class="ocrline hidden" id="ocrStatus"><span class="spinner"></span><span>Lettura scontrino in corso…</span></div>
+
+    <label>Tipo pasto</label>
+    <div class="seg" id="segTipo">
+      <button data-v="pranzo" class="on">Pranzo</button>
+      <button data-v="cena">Cena</button>
+      <button data-v="altro">Altro</button>
+    </div>
+
+    <div class="row">
+      <div><label>Data</label><input id="fData" type="date"/></div>
+      <div><label>Importo €</label><input id="fImporto" type="number" inputmode="decimal" step="0.01" placeholder="0,00"/></div>
+    </div>
+
+    <div id="capWarn" class="warnrow hidden"><span>⚠️</span><span id="capWarnTxt"></span></div>
+
+    <div class="row">
+      <div><label>Cliente / Sede</label><input id="fCliente"/></div>
+      <div><label>Comune</label><input id="fComune"/></div>
+    </div>
+    <div class="row">
+      <div style="flex:.5"><label>N° persone</label><input id="fPersone" type="number" inputmode="numeric" min="1" value="1"/></div>
+      <div><label>Pagato con</label>
+        <select id="fCarta">
+          <option value="az">Carta aziendale</option>
+          <option value="pers">Carta personale</option>
+          <option value="misto">Misto</option>
+        </select>
+      </div>
+    </div>
+    <div id="mistoRow" class="hidden">
+      <label>di cui su carta aziendale €</label>
+      <input id="fAz" type="number" inputmode="decimal" step="0.01"/>
+    </div>
+    <label>Note (facoltative)</label>
+    <input id="fNote" placeholder="es. pranzo di lavoro"/>
+
+    <div style="height:14px"></div>
+    <button class="btn big" id="btnSalvaSpesa">Salva scontrino</button>
+    <div style="height:8px"></div>
+    <button class="btn ghost" id="btnCambiaFoto">📷 Cambia / aggiungi foto</button>
+    <div style="height:16px"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script>
+/* ============ PWA manifest inline ============ */
+(function(){
+  const manifest={name:"Nota Spese Bluenext",short_name:"Nota Spese",start_url:".",display:"standalone",background_color:"#f4f6f9",theme_color:"#0b5cab",
+    icons:[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='512' height='512'%3E%3Crect width='512' height='512' rx='108' fill='%230b5cab'/%3E%3Ctext x='256' y='340' font-size='280' text-anchor='middle' fill='white' font-family='Arial'%3E%E2%82%AC%3C/text%3E%3C/svg%3E",sizes:"512x512",type:"image/svg+xml"}]};
+  const blob=new Blob([JSON.stringify(manifest)],{type:"application/manifest+json"});
+  const l=document.createElement("link");l.rel="manifest";l.href=URL.createObjectURL(blob);document.head.appendChild(l);
+})();
+
+/* ============ Config ============ */
+const DEFAULT_CFG={dip:"Degli Esposti Giancarlo",res:"Via Val Della Torre 52/A, San Gillio 10040 Torino (TO)",cliente:"Bluenext",email:"speseetrasferte@bluenext.it",capP:15,capC:25};
+let CFG={...DEFAULT_CFG};
+const MESI=["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
+const GIORNI=["DOM","lun","mar","mer","gio","ven","SAB"];
+
+/* ============ IndexedDB ============ */
+let db;
+function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open("notaspese",1);
+  r.onupgradeneeded=e=>{const d=e.target.result;if(!d.objectStoreNames.contains("spese"))d.createObjectStore("spese",{keyPath:"id"});if(!d.objectStoreNames.contains("cfg"))d.createObjectStore("cfg",{keyPath:"k"});};
+  r.onsuccess=e=>{db=e.target.result;res();};r.onerror=e=>rej(e);});}
+function tx(store,mode){return db.transaction(store,mode).objectStore(store);}
+function dbGetAll(store){return new Promise(r=>{const out=[];tx(store,"readonly").openCursor().onsuccess=e=>{const c=e.target.result;if(c){out.push(c.value);c.continue();}else r(out);};});}
+function dbPut(store,val){return new Promise(r=>{tx(store,"readwrite").put(val).onsuccess=()=>r();});}
+function dbDel(store,id){return new Promise(r=>{tx(store,"readwrite").delete(id).onsuccess=()=>r();});}
+function dbGet(store,k){return new Promise(r=>{tx(store,"readonly").get(k).onsuccess=e=>r(e.target.result);});}
+
+/* ============ Stato ============ */
+let SPESE=[];         // array di spese
+let editing=null;     // spesa in modifica
+let pendingPhoto=null;// dataURL foto in corso
+let currentTipo="pranzo";
+let filtroMeseKey="tutti";
+
+/* ============ Util ============ */
+const $=s=>document.querySelector(s);
+const $$=s=>[...document.querySelectorAll(s)];
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+function eur(n){return (Number(n)||0).toLocaleString("it-IT",{minimumFractionDigits:2,maximumFractionDigits:2});}
+function meseKey(iso){return iso?iso.slice(0,7):"";} // YYYY-MM
+function meseLabel(key){if(!key)return"";const[y,m]=key.split("-");return MESI[parseInt(m,10)-1]+" "+y;}
+function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200);}
+function azImporto(s){ // importo su carta aziendale
+  if(s.carta==="az")return s.importo;
+  if(s.carta==="pers")return 0;
+  return Math.min(Number(s.az)||0,s.importo);
+}
+function isOver(s){
+  if(s.tipo==="pranzo")return s.importo>CFG.capP+0.001;
+  if(s.tipo==="cena")return s.importo>CFG.capC+0.001;
+  return false;
+}
+
+/* ============ OCR ============ */
+async function runOCR(dataURL){
+  const st=$("#ocrStatus");st.classList.remove("hidden");
+  try{
+    const {data}=await Tesseract.recognize(dataURL,"ita",{});
+    const txt=(data&&data.text)||"";
+    const imp=parseImporto(txt);
+    const dt=parseData(txt);
+    if(imp&&!$("#fImporto").value){$("#fImporto").value=imp.toFixed(2);}
+    if(dt&&!$("#fData").value){$("#fData").value=dt;}
+    if(imp){ // classifica tipo se non toccato
+      autoTipo(imp);
+    }
+    st.querySelector("span:last-child").textContent = (imp||dt)? "Letto: "+(dt?dt+" ":"")+(imp?("€ "+imp.toFixed(2)):"")+" — controlla e correggi" : "Non sono riuscito a leggere: inserisci a mano";
+    st.querySelector(".spinner").classList.add("hidden");
+    updateCap();
+  }catch(e){
+    st.querySelector("span:last-child").textContent="OCR non disponibile offline: inserisci i dati a mano";
+    st.querySelector(".spinner").classList.add("hidden");
+  }
+}
+function autoTipo(imp){
+  // euristica: importo entro tetto pranzo -> pranzo, altrimenti cena
+  if(imp<=CFG.capP+0.001){setTipo("pranzo");}else{setTipo("cena");}
+}
+function parseImporto(txt){
+  const lines=txt.split(/\n/);
+  let best=null,bestScore=-1;
+  const numRe=/(\d{1,4})[.,](\d{2})(?!\d)/g;
+  lines.forEach(line=>{
+    const L=line.toUpperCase();
+    let score=0;
+    if(/TOTALE\s*(COMPLESSIVO|EURO|€|DA PAGARE)?/.test(L))score+=5;
+    if(/\bTOTALE\b/.test(L))score+=3;
+    if(/IMPORTO|PAGAT|CONTANT|CARTA|BANCOMAT|EURO|€/.test(L))score+=1;
+    if(/SUBTOT|IVA|RESTO|N\.|SCONTR/.test(L))score-=3;
+    let m;while((m=numRe.exec(line))){
+      const v=parseFloat(m[1]+"."+m[2]);
+      if(v<=0||v>500)continue;
+      const s=score+ v/1000; // tie-break su valore
+      if(s>bestScore){bestScore=s;best=v;}
+    }
+  });
+  return best;
+}
+function parseData(txt){
+  const re=/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/g;let m,found=null;
+  while((m=re.exec(txt))){
+    let d=+m[1],mo=+m[2],y=+m[3];
+    if(y<100)y+=2000;
+    if(d>=1&&d<=31&&mo>=1&&mo<=12&&y>=2020&&y<=2035){found={d,mo,y};break;}
+  }
+  if(!found)return null;
+  return `${found.y}-${String(found.mo).padStart(2,"0")}-${String(found.d).padStart(2,"0")}`;
+}
+
+/* ============ Foto: ridimensiona e comprimi ============ */
+function fileToDataURL(file){
+  return new Promise((res,rej)=>{
+    const img=new Image();const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      const max=1500;let{width:w,height:h}=img;
+      if(w>max||h>max){const r=Math.min(max/w,max/h);w=Math.round(w*r);h=Math.round(h*r);}
+      const cv=document.createElement("canvas");cv.width=w;cv.height=h;
+      cv.getContext("2d").drawImage(img,0,0,w,h);
+      URL.revokeObjectURL(url);
+      try{res(cv.toDataURL("image/jpeg",0.72));}catch(e){rej(e);}
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error("decode"));};
+    img.src=url;
+  });
+}
+
+/* ============ Sheet nuovo scontrino ============ */
+function openSheet(spesa){
+  editing=spesa||null;
+  pendingPhoto=spesa?spesa.foto:null;
+  $("#sheetTitle").textContent=spesa?"Modifica scontrino":"Nuovo scontrino";
+  const p=$("#prev");
+  if(pendingPhoto){p.src=pendingPhoto;p.classList.remove("hidden");}else{p.classList.add("hidden");}
+  $("#ocrStatus").classList.add("hidden");
+  setTipo(spesa?spesa.tipo:"pranzo");
+  $("#fData").value=spesa?spesa.data:"";
+  $("#fImporto").value=spesa?spesa.importo:"";
+  $("#fCliente").value=spesa?spesa.cliente:CFG.cliente;
+  $("#fComune").value=spesa?spesa.comune:"";
+  $("#fPersone").value=spesa?spesa.persone:1;
+  $("#fCarta").value=spesa?spesa.carta:"az";
+  $("#fAz").value=spesa&&spesa.carta==="misto"?spesa.az:"";
+  $("#fNote").value=spesa?spesa.note:"";
+  onCartaChange();updateCap();
+  $("#sheetOverlay").classList.remove("hidden");
+}
+function closeSheet(){$("#sheetOverlay").classList.add("hidden");editing=null;pendingPhoto=null;}
+function setTipo(v){currentTipo=v;$$("#segTipo button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));updateCap();}
+function onCartaChange(){$("#mistoRow").classList.toggle("hidden",$("#fCarta").value!=="misto");}
+function updateCap(){
+  const imp=parseFloat($("#fImporto").value)||0;
+  const cap=currentTipo==="pranzo"?CFG.capP:currentTipo==="cena"?CFG.capC:null;
+  const w=$("#capWarn");
+  if(cap!==null&&imp>cap+0.001){
+    w.classList.remove("hidden");
+    $("#capWarnTxt").textContent=`Importo € ${eur(imp)} oltre il tetto ${currentTipo} di € ${eur(cap)}. L'eccedenza (€ ${eur(imp-cap)}) di norma non è rimborsabile.`;
+  }else{w.classList.add("hidden");}
+}
+async function salvaSpesa(){
+  const imp=parseFloat($("#fImporto").value)||0;
+  if(!$("#fData").value){toast("Inserisci la data");return;}
+  if(imp<=0){toast("Inserisci l'importo");return;}
+  const s={
+    id:editing?editing.id:uid(),
+    data:$("#fData").value,tipo:currentTipo,importo:imp,
+    cliente:$("#fCliente").value.trim()||CFG.cliente,comune:$("#fComune").value.trim(),
+    persone:parseInt($("#fPersone").value)||1,carta:$("#fCarta").value,
+    az:$("#fCarta").value==="misto"?(parseFloat($("#fAz").value)||0):0,
+    note:$("#fNote").value.trim(),foto:pendingPhoto||null,
+    created:editing?editing.created:Date.now()
+  };
+  await dbPut("spese",s);
+  await loadSpese();closeSheet();toast(editing?"Scontrino aggiornato":"Scontrino salvato ✓");
+}
+
+/* ============ Rendering liste ============ */
+async function loadSpese(){SPESE=(await dbGetAll("spese")).sort((a,b)=>a.data.localeCompare(b.data)||a.created-b.created);renderAll();}
+function mesiPresenti(){return[...new Set(SPESE.map(s=>meseKey(s.data)))].sort();}
+function renderAll(){renderFiltro();renderLista();renderMeseChecks();}
+function renderFiltro(){
+  const box=$("#filtroMese");const mesi=mesiPresenti();
+  if(mesi.length<=1){box.innerHTML="";filtroMeseKey="tutti";return;}
+  box.innerHTML=`<label>Mese</label><select id="selFiltro"><option value="tutti">Tutti i mesi</option>${mesi.map(m=>`<option value="${m}" ${m===filtroMeseKey?"selected":""}>${meseLabel(m)}</option>`).join("")}</select><div style="height:10px"></div>`;
+  $("#selFiltro").onchange=e=>{filtroMeseKey=e.target.value;renderLista();};
+}
+function renderLista(){
+  const box=$("#listaSpese");
+  let list=SPESE;
+  if(filtroMeseKey!=="tutti")list=SPESE.filter(s=>meseKey(s.data)===filtroMeseKey);
+  if(!list.length){box.innerHTML=`<div class="empty"><div class="ic">🧾</div><p>Nessuno scontrino ancora.<br>Tocca <b>＋ Scontrino</b> per iniziare.</p></div>`;$("#totaliSpese").innerHTML="";return;}
+  box.innerHTML=list.map(s=>{
+    const d=new Date(s.data+"T00:00:00");
+    const g=GIORNI[d.getDay()];
+    const over=isOver(s);
+    const cartaTxt=s.carta==="az"?"aziendale":s.carta==="pers"?"personale":"misto";
+    return `<div class="expense" data-id="${s.id}">
+      ${s.foto?`<img class="thumb" src="${s.foto}"/>`:`<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:22px">🧾</div>`}
+      <div class="info">
+        <div class="t1">${g} ${d.getDate()}/${d.getMonth()+1} · <span class="badge ${s.tipo==="cena"?"cena":""} ${over?"over":""}">${s.tipo}</span></div>
+        <div class="t2">${s.cliente||""}${s.comune?" · "+s.comune:""} · ${s.persone} pers · ${cartaTxt}</div>
+      </div>
+      <div class="amt">€ ${eur(s.importo)}${over?'<div class="badge over" style="margin-top:3px">oltre tetto</div>':""}</div>
+    </div>`;
+  }).join("");
+  $$("#listaSpese .expense").forEach(el=>el.onclick=()=>{const s=SPESE.find(x=>x.id===el.dataset.id);openSheet(s);});
+  // totali
+  const tot=list.reduce((a,s)=>a+s.importo,0);
+  const totAz=list.reduce((a,s)=>a+azImporto(s),0);
+  $("#totaliSpese").innerHTML=`
+    <div class="totbox"><span class="muted">N° scontrini</span><span>${list.length}</span></div>
+    <div class="totbox"><span class="muted">di cui carta aziendale</span><span>€ ${eur(totAz)}</span></div>
+    <div class="totbox"><span class="muted">di cui carta personale (da rimborsare)</span><span>€ ${eur(tot-totAz)}</span></div>
+    <div class="totbox grand"><span>Totale</span><span>€ ${eur(tot)}</span></div>`;
+}
+let selMesi=new Set();
+function renderMeseChecks(){
+  const box=$("#meseChecks");const mesi=mesiPresenti();
+  if(!mesi.length){box.innerHTML=`<p class="muted small">Nessuna spesa da inviare.</p>`;$("#riepilogoGen").innerHTML="";return;}
+  if(!selMesi.size)mesi.forEach(m=>selMesi.add(m));
+  box.innerHTML=mesi.map(m=>`<label class="chk"><input type="checkbox" value="${m}" ${selMesi.has(m)?"checked":""}/> <span>${meseLabel(m)} · ${SPESE.filter(s=>meseKey(s.data)===m).length} scontrini</span></label>`).join("");
+  $$("#meseChecks input").forEach(c=>c.onchange=()=>{c.checked?selMesi.add(c.value):selMesi.delete(c.value);renderRiepilogo();});
+  renderRiepilogo();
+}
+function speseSelezionate(){return SPESE.filter(s=>selMesi.has(meseKey(s.data))).sort((a,b)=>a.data.localeCompare(b.data));}
+function renderRiepilogo(){
+  const l=speseSelezionate();
+  const tot=l.reduce((a,s)=>a+s.importo,0);
+  const totAz=l.reduce((a,s)=>a+azImporto(s),0);
+  $("#riepilogoGen").innerHTML=l.length?`
+    <div class="totbox"><span class="muted">Scontrini selezionati</span><span>${l.length}</span></div>
+    <div class="totbox"><span class="muted">Carta aziendale</span><span>€ ${eur(totAz)}</span></div>
+    <div class="totbox"><span class="muted">Carta personale (rimborso)</span><span>€ ${eur(tot-totAz)}</span></div>
+    <div class="totbox grand"><span>Totale periodo</span><span>€ ${eur(tot)}</span></div>`:`<p class="muted small">Seleziona almeno un mese.</p>`;
+}
+
+/* ============ Periodo -> testo ============ */
+function periodoTesto(){
+  const keys=[...selMesi].sort();
+  const anni=[...new Set(keys.map(k=>k.split("-")[0]))];
+  const nomi=keys.map(k=>MESI[parseInt(k.split("-")[1],10)-1]);
+  let mesiStr;
+  if(nomi.length===1)mesiStr=nomi[0];
+  else if(nomi.length===2)mesiStr=nomi[0]+" e "+nomi[1];
+  else mesiStr=nomi.slice(0,-1).join(", ")+" e "+nomi[nomi.length-1];
+  const annoStr=anni.join("/");
+  return{mesiStr,annoStr};
+}
+
+/* ============ PDF giustificativi ============ */
+function genGiustificativi(){
+  const l=speseSelezionate().filter(s=>s.foto);
+  if(!l.length){toast("Nessuno scontrino con foto nel periodo");return null;}
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:"mm",format:"a4"});
+  const pw=210,ph=297,mg=12;
+  l.forEach((s,i)=>{
+    if(i>0)doc.addPage();
+    const d=new Date(s.data+"T00:00:00");
+    doc.setFontSize(11);doc.setTextColor(11,92,171);
+    doc.text(`Scontrino ${i+1}/${l.length}`,mg,mg+2);
+    doc.setTextColor(30);doc.setFontSize(10);
+    const cap=`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()} · ${s.tipo} · ${s.cliente||""}${s.comune?" ("+s.comune+")":""} · € ${eur(s.importo)} · ${s.carta==="az"?"carta aziendale":s.carta==="pers"?"carta personale":"misto"}`;
+    doc.text(doc.splitTextToSize(cap,pw-2*mg),mg,mg+9);
+    // immagine
+    try{
+      const props=doc.getImageProperties(s.foto);
+      const availW=pw-2*mg, availH=ph-mg-24;
+      let w=availW, h=w*props.height/props.width;
+      if(h>availH){h=availH;w=h*props.width/props.height;}
+      const x=(pw-w)/2, y=mg+16;
+      doc.addImage(s.foto,"JPEG",x,y,w,h);
+    }catch(e){doc.text("[immagine non incorporabile]",mg,mg+20);}
+  });
+  const {mesiStr,annoStr}=periodoTesto();
+  const fn=`Giustificativi_${mesiStr.replace(/ /g,"")}_${annoStr}_${CFG.dip.split(" ").slice(-2).join("")}.pdf`;
+  return{doc,fn};
+}
+
+/* ============ PDF nota spese ============ */
+function genNotaSpese(){
+  const l=speseSelezionate();
+  if(!l.length){toast("Nessuna spesa selezionata");return null;}
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:"mm",format:"a4"});
+  const {mesiStr,annoStr}=periodoTesto();
+  let y=14;
+  doc.setFontSize(15);doc.setTextColor(11,92,171);
+  doc.text("NOTA SPESE",14,y);
+  doc.setFontSize(11);doc.setTextColor(30);
+  doc.text(`${mesiStr} ${annoStr}`,196,y,{align:"right"});
+  y+=8;
+  doc.setDrawColor(11,92,171);doc.setLineWidth(.5);doc.line(14,y,196,y);y+=7;
+  doc.setFontSize(10);doc.setTextColor(30);
+  doc.text(`Dipendente/Collaboratore:  ${CFG.dip}`,14,y);y+=5;
+  doc.setTextColor(90);doc.setFontSize(9);
+  doc.text(`Residenza/domicilio:  ${CFG.res}`,14,y);y+=6;
+
+  // tabella
+  const body=l.map(s=>{
+    const d=new Date(s.data+"T00:00:00");
+    const az=azImporto(s);
+    return[
+      `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`,
+      GIORNI[d.getDay()],
+      (s.tipo||"").charAt(0).toUpperCase()+(s.tipo||"").slice(1),
+      s.cliente||"", s.comune||"", String(s.persone||1),
+      eur(s.importo), eur(az), eur(s.importo-az)
+    ];
+  });
+  const tot=l.reduce((a,s)=>a+s.importo,0);
+  const totAz=l.reduce((a,s)=>a+azImporto(s),0);
+  doc.autoTable({
+    startY:y,
+    head:[["Data","G.","Pasto","Cliente/Sede","Comune","N°","Importo €","Carta az. €","Carta pers. €"]],
+    body,
+    foot:[["","","","","","Totali",eur(tot),eur(totAz),eur(tot-totAz)]],
+    styles:{fontSize:8.5,cellPadding:1.8,textColor:30},
+    headStyles:{fillColor:[11,92,171],textColor:255,fontSize:8.5},
+    footStyles:{fillColor:[238,242,247],textColor:[8,63,119],fontStyle:"bold"},
+    columnStyles:{0:{cellWidth:14},1:{cellWidth:10},2:{cellWidth:18},5:{cellWidth:9,halign:"center"},6:{halign:"right",cellWidth:20},7:{halign:"right",cellWidth:20},8:{halign:"right",cellWidth:20}},
+    margin:{left:14,right:14}
+  });
+  let fy=doc.lastAutoTable.finalY+8;
+  doc.setFontSize(10);doc.setTextColor(11,92,171);
+  doc.text(`Totale spese: € ${eur(tot)}`,14,fy);
+  doc.text(`Da rimborsare (carta personale): € ${eur(tot-totAz)}`,196,fy,{align:"right"});
+  fy+=9;
+  doc.setFontSize(7.5);doc.setTextColor(90);
+  const decl="Il sottoscritto, conscio delle sanzioni penali previste dall'art. 76 del D.P.R. n. 445 del 28 dicembre 2000 per le ipotesi di falsità in atti e dichiarazioni mendaci, dichiara di aver sostenuto le spese indicate nel presente modulo.";
+  doc.text(doc.splitTextToSize(decl,182),14,fy);fy+=12;
+  doc.setTextColor(30);doc.setFontSize(9);
+  doc.text("Data: ______________",14,fy);
+  doc.text("Firma lavoratore/collaboratore: ______________________",196,fy,{align:"right"});
+  const fn=`NotaSpese_${mesiStr.replace(/ /g,"")}_${annoStr}_${CFG.dip.split(" ").slice(-2).join("")}.pdf`;
+  return{doc,fn};
+}
+
+/* ============ Email / condivisione ============ */
+async function preparaMail(){
+  const l=speseSelezionate();
+  if(!l.length){toast("Seleziona almeno un mese");return;}
+  const g=genGiustificativi();const n=genNotaSpese();
+  if(!n){return;}
+  const {mesiStr,annoStr}=periodoTesto();
+  const oggetto=`Rimborso spese ${mesiStr} ${annoStr} ${CFG.dip}`;
+  const corpo=`Buongiorno,\nIn allegato i rimborsi spese con i giustificativi per i mesi di ${mesiStr} ${annoStr}.\nGrazie.`;
+  const files=[];
+  if(n)files.push(new File([n.doc.output("blob")],n.fn,{type:"application/pdf"}));
+  if(g)files.push(new File([g.doc.output("blob")],g.fn,{type:"application/pdf"}));
+  // Web Share con file
+  if(navigator.canShare&&navigator.canShare({files})){
+    try{
+      await navigator.share({title:oggetto,text:corpo,files});
+      toast("Condiviso — completa in Outlook/Mail");
+      return;
+    }catch(e){ if(e.name==="AbortError")return; }
+  }
+  // Fallback: scarica i PDF + apri mail senza allegati
+  if(n)n.doc.save(n.fn);
+  if(g)g.doc.save(g.fn);
+  const mail=`mailto:${encodeURIComponent(CFG.email)}?subject=${encodeURIComponent(oggetto)}&body=${encodeURIComponent(corpo)}`;
+  setTimeout(()=>{window.location.href=mail;},600);
+  toast("PDF scaricati — allegali alla mail aperta");
+}
+
+/* ============ Impostazioni ============ */
+async function loadCfg(){
+  const c=await dbGet("cfg","main");if(c)CFG={...DEFAULT_CFG,...c.val};
+  $("#cfgDip").value=CFG.dip;$("#cfgRes").value=CFG.res;$("#cfgCliente").value=CFG.cliente;
+  $("#cfgEmail").value=CFG.email;$("#cfgCapP").value=CFG.capP;$("#cfgCapC").value=CFG.capC;
+  $("#hdrSub").textContent="Bluenext · "+CFG.dip;
+}
+async function saveCfg(){
+  CFG={dip:$("#cfgDip").value.trim(),res:$("#cfgRes").value.trim(),cliente:$("#cfgCliente").value.trim(),
+    email:$("#cfgEmail").value.trim(),capP:parseFloat($("#cfgCapP").value)||15,capC:parseFloat($("#cfgCapC").value)||25};
+  await dbPut("cfg",{k:"main",val:CFG});$("#hdrSub").textContent="Bluenext · "+CFG.dip;
+  renderAll();toast("Impostazioni salvate ✓");
+}
+function exportBackup(){
+  const blob=new Blob([JSON.stringify({cfg:CFG,spese:SPESE},null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="notaspese_backup.json";a.click();
+}
+async function clearPeriodo(){
+  const l=speseSelezionate();
+  if(!l.length){toast("Nessun mese selezionato");return;}
+  if(!confirm(`Eliminare ${l.length} scontrini del periodo selezionato? (fai prima un backup)`))return;
+  for(const s of l)await dbDel("spese",s.id);
+  selMesi.clear();await loadSpese();toast("Spese eliminate");
+}
+
+/* ============ Navigazione tab ============ */
+function showTab(t){
+  ["spese","genera","imp"].forEach(x=>$("#tab-"+x).classList.toggle("hidden",x!==t));
+  $$("nav.tabbar button").forEach(b=>b.classList.toggle("active",b.dataset.tab===t));
+  $("#fabAdd").classList.toggle("hidden",t!=="spese");
+}
+
+/* ============ Eventi ============ */
+$$("nav.tabbar button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+$("#fabAdd").onclick=()=>{ // nuovo: chiedi foto subito
+  editing=null;pendingPhoto=null;$("#fileCam").value="";$("#fileCam").click();
+};
+$("#btnCambiaFoto").onclick=()=>$("#fileCam").click();
+$("#fileCam").onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    pendingPhoto=await fileToDataURL(f);
+    if($("#sheetOverlay").classList.contains("hidden"))openSheet(null);
+    const p=$("#prev");p.src=pendingPhoto;p.classList.remove("hidden");
+    runOCR(pendingPhoto);
+  }catch(err){
+    toast("Formato foto non leggibile — riprova o inserisci a mano");
+    if($("#sheetOverlay").classList.contains("hidden"))openSheet(null);
+  }
+};
+$("#sheetClose").onclick=closeSheet;
+$("#sheetOverlay").onclick=e=>{if(e.target.id==="sheetOverlay")closeSheet();};
+$$("#segTipo button").forEach(b=>b.onclick=()=>setTipo(b.dataset.v));
+$("#fCarta").onchange=onCartaChange;
+$("#fImporto").oninput=updateCap;
+$("#btnSalvaSpesa").onclick=salvaSpesa;
+$("#btnSaveCfg").onclick=saveCfg;
+$("#btnExport").onclick=exportBackup;
+$("#btnClear").onclick=clearPeriodo;
+$("#btnGiust").onclick=()=>{const r=genGiustificativi();if(r){r.doc.save(r.fn);toast("PDF giustificativi generato");}};
+$("#btnNota").onclick=()=>{const r=genNotaSpese();if(r){r.doc.save(r.fn);toast("PDF nota spese generato");}};
+$("#btnMail").onclick=preparaMail;
+
+/* ============ Avvio ============ */
+(async function(){
+  await openDB();await loadCfg();await loadSpese();showTab("spese");
+})();
+</script>
+</body>
+</html>
