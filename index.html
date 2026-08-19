@@ -3,86 +3,94 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0b5cab">
+<meta name="theme-color" content="#0B0320">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Nota Spese">
-<title>Xpense</title>
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect width='180' height='180' rx='38' fill='%230b5cab'/%3E%3Ctext x='90' y='120' font-size='96' text-anchor='middle' fill='white' font-family='Arial'%3E%E2%82%AC%3C/text%3E%3C/svg%3E">
+<title>Nota Spese Bluenext</title>
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect width='180' height='180' rx='38' fill='%230B0320'/%3E%3Ctext x='90' y='122' font-size='104' text-anchor='middle' fill='%2300FFA3' font-family='Arial' font-weight='bold'%3E%E2%82%AC%3C/text%3E%3C/svg%3E">
 <style>
   :root{
-    --blu:#0b5cab; --blu-scuro:#083f77; --bg:#f4f6f9; --card:#ffffff;
-    --testo:#1c2530; --muted:#6b7684; --bordo:#e2e7ee; --ok:#1a8f4c; --warn:#c0392b; --warn-bg:#fdecea;
+    --bg:#0B0320; --bg2:#0f0630; --card:#150a33; --card2:#1b0f40;
+    --testo:#ECE8FF; --muted:#9A90C8; --bordo:#2e1c57;
+    --mint:#00FFA3; --yellow:#F5F500; --purple:#6C00FF; --pink:#FF007F;
+    --blu:#00FFA3; --blu-scuro:#00c680;
+    --ok:#00FFA3; --warn:#FF007F; --warn-bg:rgba(255,0,127,.14);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--testo);font-size:16px;line-height:1.4;padding-bottom:80px}
-  header{position:sticky;top:0;z-index:20;background:var(--blu);color:#fff;padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;display:flex;align-items:center;gap:10px}
-  header .logo{font-size:22px;font-weight:700}
-  header .sub{font-size:12px;opacity:.85;margin-top:-2px}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:radial-gradient(1200px 600px at 100% -10%,rgba(108,0,255,.28),transparent 60%),radial-gradient(900px 500px at -10% 8%,rgba(255,0,127,.18),transparent 55%),var(--bg);background-attachment:fixed;color:var(--testo);font-size:16px;line-height:1.4;padding-bottom:84px}
+  header{position:sticky;top:0;z-index:20;background:linear-gradient(100deg,#1a0740,#3d0a63 55%,#5c0b57);color:#fff;padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(0,255,163,.35);box-shadow:0 0 18px rgba(108,0,255,.5)}
+  header .logo{font-size:22px;font-weight:800;letter-spacing:.5px;color:#fff;text-shadow:0 0 10px rgba(0,255,163,.7)}
+  header .logo i{color:var(--mint)}
+  header .sub{font-size:12px;opacity:.9;margin-top:-2px;color:var(--mint)}
   main{padding:14px;max-width:720px;margin:0 auto}
-  .card{background:var(--card);border:1px solid var(--bordo);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
-  h2{font-size:15px;margin:0 0 10px;color:var(--blu-scuro);text-transform:uppercase;letter-spacing:.03em}
-  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px;font-weight:600}
-  input,select,textarea{width:100%;padding:12px;border:1px solid var(--bordo);border-radius:10px;font-size:16px;background:#fff;color:var(--testo)}
-  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blu)}
+  .card{background:linear-gradient(180deg,var(--card),var(--bg2));border:1px solid var(--bordo);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 0 0 1px rgba(108,0,255,.12),0 8px 24px rgba(0,0,0,.45)}
+  h2{font-size:14px;margin:0 0 10px;color:var(--mint);text-transform:uppercase;letter-spacing:.08em;font-weight:800}
+  label{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 4px;font-weight:700}
+  input,select,textarea{width:100%;padding:12px;border:1px solid var(--bordo);border-radius:10px;font-size:16px;background:#0e0630;color:var(--testo)}
+  input::placeholder{color:#5b5385}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--mint);box-shadow:0 0 0 2px rgba(0,255,163,.25)}
   .row{display:flex;gap:10px}
   .row>*{flex:1}
   button{cursor:pointer;font-family:inherit}
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border:none;border-radius:12px;background:var(--blu);color:#fff;font-size:16px;font-weight:600}
-  .btn:active{background:var(--blu-scuro)}
-  .btn.secondary{background:#eef2f7;color:var(--blu-scuro)}
-  .btn.ghost{background:transparent;border:1px solid var(--bordo);color:var(--testo)}
-  .btn.danger{background:#fbecea;color:var(--warn)}
-  .btn.big{padding:18px;font-size:17px}
-  .fab{position:fixed;right:16px;bottom:calc(env(safe-area-inset-bottom) + 78px);width:auto;padding:16px 20px;border-radius:30px;box-shadow:0 6px 18px rgba(11,92,171,.4);z-index:15}
-  nav.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:#fff;border-top:1px solid var(--bordo);display:flex;padding-bottom:env(safe-area-inset-bottom)}
-  nav.tabbar button{flex:1;background:none;border:none;padding:10px 0 8px;color:var(--muted);font-size:11px;display:flex;flex-direction:column;align-items:center;gap:3px}
-  nav.tabbar button .ic{font-size:20px;line-height:1}
-  nav.tabbar button.active{color:var(--blu)}
-  .expense{display:flex;gap:12px;align-items:center;padding:12px;border:1px solid var(--bordo);border-radius:12px;margin-bottom:8px;background:#fff}
-  .expense .thumb{width:52px;height:52px;border-radius:9px;object-fit:cover;background:#eef2f7;flex:none}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border:none;border-radius:12px;background:var(--mint);color:#04131a;font-size:16px;font-weight:800;box-shadow:0 0 16px rgba(0,255,163,.35)}
+  .btn:active{transform:translateY(1px);box-shadow:0 0 10px rgba(0,255,163,.6)}
+  .btn.secondary{background:linear-gradient(100deg,#6C00FF,#8a2bff);color:#fff;box-shadow:0 0 16px rgba(108,0,255,.5)}
+  .btn.ghost{background:transparent;border:1px solid var(--bordo);color:var(--testo);box-shadow:none}
+  .btn.danger{background:transparent;border:1px solid var(--pink);color:var(--pink);box-shadow:0 0 12px rgba(255,0,127,.25)}
+  .btn.big{padding:17px;font-size:16px}
+  .fab{position:fixed;right:16px;bottom:calc(env(safe-area-inset-bottom) + 78px);width:auto;padding:15px 20px;border-radius:30px;background:var(--pink);color:#fff;box-shadow:0 0 22px rgba(255,0,127,.7);z-index:15;font-weight:800}
+  nav.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(11,3,32,.96);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-top:1px solid var(--bordo);display:flex;padding-bottom:env(safe-area-inset-bottom)}
+  nav.tabbar button{flex:1;background:none;border:none;padding:10px 0 8px;color:var(--muted);font-size:11px;display:flex;flex-direction:column;align-items:center;gap:4px;font-weight:600}
+  nav.tabbar button .ic{font-size:18px;line-height:1}
+  nav.tabbar button.active{color:var(--mint);text-shadow:0 0 10px rgba(0,255,163,.8)}
+  .expense{display:flex;gap:12px;align-items:center;padding:12px;border:1px solid var(--bordo);border-radius:12px;margin-bottom:8px;background:var(--card2)}
+  .expense .thumb{width:52px;height:52px;border-radius:9px;object-fit:cover;background:#0e0630;flex:none;display:flex;align-items:center;justify-content:center;color:var(--mint);font-size:20px}
   .expense .info{flex:1;min-width:0}
-  .expense .info .t1{font-weight:600;font-size:15px}
+  .expense .info .t1{font-weight:700;font-size:15px;color:var(--testo)}
   .expense .info .t2{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .expense .amt{font-weight:700;font-size:15px;text-align:right;white-space:nowrap}
-  .badge{display:inline-block;font-size:11px;padding:2px 7px;border-radius:20px;background:#eef2f7;color:var(--blu-scuro);font-weight:600}
-  .badge.cena{background:#efe7fb;color:#5b3ba0}
-  .badge.over{background:var(--warn-bg);color:var(--warn)}
+  .expense .amt{font-weight:800;font-size:15px;text-align:right;white-space:nowrap;color:var(--mint)}
+  .badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;background:rgba(0,255,163,.15);color:var(--mint);font-weight:700;border:1px solid rgba(0,255,163,.35)}
+  .badge.cena{background:rgba(108,0,255,.22);color:#b98cff;border-color:rgba(108,0,255,.5)}
+  .badge.over{background:var(--warn-bg);color:var(--pink);border-color:rgba(255,0,127,.5)}
   .muted{color:var(--muted)}
   .small{font-size:13px}
   .totbox{display:flex;justify-content:space-between;padding:8px 0;border-top:1px dashed var(--bordo)}
-  .totbox.grand{border-top:2px solid var(--blu);font-weight:700;font-size:17px;color:var(--blu-scuro)}
+  .totbox.grand{border-top:2px solid var(--mint);font-weight:800;font-size:17px;color:var(--yellow)}
   .hidden{display:none!important}
-  .overlay{position:fixed;inset:0;background:rgba(16,24,40,.5);z-index:40;display:flex;align-items:flex-end;justify-content:center}
-  .sheet{background:#fff;width:100%;max-width:720px;border-radius:18px 18px 0 0;max-height:92vh;overflow:auto;padding:16px 16px calc(env(safe-area-inset-bottom) + 16px)}
-  .sheet h2{display:flex;justify-content:space-between;align-items:center}
-  .sheet .close{background:none;border:none;font-size:26px;color:var(--muted);line-height:1}
-  .previewimg{width:100%;max-height:230px;object-fit:contain;background:#f0f3f7;border-radius:12px;margin:8px 0}
+  .overlay{position:fixed;inset:0;background:rgba(4,1,14,.72);z-index:40;display:flex;align-items:flex-end;justify-content:center;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+  .sheet{background:linear-gradient(180deg,#150a33,#0d0526);width:100%;max-width:720px;border-radius:18px 18px 0 0;max-height:94vh;overflow:auto;padding:0 16px calc(env(safe-area-inset-bottom) + 16px);border-top:1px solid rgba(0,255,163,.4);box-shadow:0 -6px 30px rgba(108,0,255,.4)}
+  .sheet h2{display:flex;justify-content:space-between;align-items:center;gap:8px;position:sticky;top:0;background:#140933;padding:12px 0 10px;margin:0 0 6px;z-index:2;border-bottom:1px solid var(--bordo)}
+  .sheet h2 .ttl{flex:1;text-align:center;color:var(--mint);font-size:15px}
+  .sheet .close{background:rgba(255,255,255,.06);border:1px solid var(--bordo);border-radius:10px;width:40px;height:40px;font-size:16px;color:var(--testo);line-height:1;display:flex;align-items:center;justify-content:center;flex:none}
+  .sheet .close:active{background:rgba(0,255,163,.15);color:var(--mint)}
+  .previewimg{width:100%;max-height:230px;object-fit:contain;background:#0e0630;border-radius:12px;margin:8px 0;border:1px solid var(--bordo)}
   .ocrline{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin:6px 0}
-  .spinner{width:16px;height:16px;border:2px solid var(--bordo);border-top-color:var(--blu);border-radius:50%;animation:spin .8s linear infinite}
+  .spinner{width:16px;height:16px;border:2px solid var(--bordo);border-top-color:var(--mint);border-radius:50%;animation:spin .8s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
-  .warnrow{background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:8px 10px;font-size:13px;margin-top:8px;display:flex;gap:8px;align-items:flex-start}
-  .chip{display:inline-block;margin:6px 6px 0 0;padding:9px 13px;border:1px solid var(--bordo);border-radius:20px;background:#eef2f7;color:var(--blu-scuro);font-weight:700;font-size:15px}
-  .chip:active{background:var(--blu);color:#fff}
-  .seg{display:flex;border:1px solid var(--bordo);border-radius:10px;overflow:hidden}
-  .seg button{flex:1;background:#fff;border:none;padding:11px;font-size:14px;color:var(--muted);font-weight:600}
-  .seg button.on{background:var(--blu);color:#fff}
-  .toast{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);background:#1c2530;color:#fff;padding:12px 18px;border-radius:24px;font-size:14px;z-index:60;box-shadow:0 6px 20px rgba(0,0,0,.3);opacity:0;transition:opacity .25s}
+  .warnrow{background:var(--warn-bg);color:var(--pink);border:1px solid rgba(255,0,127,.4);border-radius:10px;padding:8px 10px;font-size:13px;margin-top:8px;display:flex;gap:8px;align-items:flex-start}
+  .chip{display:inline-block;margin:6px 6px 0 0;padding:9px 13px;border:1px solid var(--mint);border-radius:20px;background:rgba(0,255,163,.1);color:var(--mint);font-weight:800;font-size:15px}
+  .chip:active{background:var(--mint);color:#04131a}
+  .seg{display:flex;border:1px solid var(--bordo);border-radius:10px;overflow:hidden;background:#0e0630}
+  .seg button{flex:1;background:transparent;border:none;padding:11px;font-size:14px;color:var(--muted);font-weight:700}
+  .seg button.on{background:var(--mint);color:#04131a}
+  .toast{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);background:#1b0f40;color:var(--mint);border:1px solid var(--mint);padding:12px 18px;border-radius:24px;font-size:14px;z-index:60;box-shadow:0 0 20px rgba(0,255,163,.4);opacity:0;transition:opacity .25s;max-width:88%;text-align:center}
   .toast.show{opacity:1}
   .monthgroup{margin-bottom:6px}
-  .chk{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--bordo);border-radius:10px;margin-bottom:8px}
-  .chk input{width:20px;height:20px;flex:none}
+  .chk{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--bordo);border-radius:10px;margin-bottom:8px;background:var(--card2)}
+  .chk input{width:20px;height:20px;flex:none;accent-color:var(--mint)}
   .empty{text-align:center;color:var(--muted);padding:40px 10px}
-  .empty .ic{font-size:44px}
-  a.link{color:var(--blu);font-weight:600;text-decoration:none}
+  .empty .ic{font-size:44px;color:var(--purple)}
+  a.link{color:var(--mint);font-weight:700;text-decoration:none}
   .infoline{font-size:12.5px;color:var(--muted);margin-top:6px}
 </style>
 </head>
 <body>
 <header>
   <div style="flex:1">
-    <div class="logo">Xpense</div>
+    <div class="logo"><i class="fa-solid fa-bolt"></i> Nota Spese</div>
     <div class="sub" id="hdrSub">Bluenext · rimborsi trasferta</div>
   </div>
 </header>
@@ -108,11 +116,11 @@
     </div>
     <div class="card">
       <h2>Documenti</h2>
-      <button class="btn big" id="btnGiust">📎 Genera PDF giustificativi (scontrini)</button>
+      <button class="btn big" id="btnGiust"><i class="fa-solid fa-paperclip"></i> Genera PDF giustificativi (scontrini)</button>
       <div style="height:10px"></div>
-      <button class="btn big secondary" id="btnNota">📄 Genera PDF nota spese</button>
+      <button class="btn big secondary" id="btnNota"><i class="fa-solid fa-file-pdf"></i> Genera PDF nota spese</button>
       <div style="height:14px"></div>
-      <button class="btn big" id="btnMail" style="background:var(--ok)">✉️ Prepara e-mail con allegati</button>
+      <button class="btn big" id="btnMail"><i class="fa-solid fa-envelope"></i> Prepara e-mail con allegati</button>
       <div class="infoline">Oggetto e testo vengono precompilati. Gli allegati (i 2 PDF) si aprono nel foglio di condivisione: scegli Outlook / Mail per completare l'invio a <b>speseetrasferte@bluenext.it</b>.</div>
     </div>
   </section>
@@ -158,14 +166,14 @@
       <button class="btn" id="btnLogin">Accedi / Registrati</button>
       <button class="btn ghost hidden" id="btnLogout">Esci</button>
       <div style="height:10px"></div>
-      <button class="btn secondary" id="btnSyncNow">↻ Sincronizza ora</button>
+      <button class="btn secondary" id="btnSyncNow"><i class="fa-solid fa-arrows-rotate"></i> Sincronizza ora</button>
       <div class="infoline" id="syncStatus"></div>
     </div>
     <div class="card">
       <h2>Dati e backup</h2>
-      <button class="btn ghost" id="btnExport">⤓ Esporta backup (JSON)</button>
+      <button class="btn ghost" id="btnExport"><i class="fa-solid fa-download"></i> Esporta backup (JSON)</button>
       <div style="height:8px"></div>
-      <button class="btn danger" id="btnClear">🗑 Svuota spese del periodo selezionato</button>
+      <button class="btn danger" id="btnClear"><i class="fa-solid fa-trash-can"></i> Svuota spese del periodo selezionato</button>
       <div class="infoline">I dati restano solo su questo dispositivo (nessun server). Fai un backup prima di svuotare, se vuoi conservarli.</div>
     </div>
     <div class="card">
@@ -175,12 +183,12 @@
   </section>
 </main>
 
-<button class="btn fab" id="fabAdd">＋ Scontrino</button>
+<button class="btn fab" id="fabAdd"><i class="fa-solid fa-camera"></i> Scontrino</button>
 
 <nav class="tabbar">
-  <button data-tab="spese" class="active"><span class="ic">🧾</span>Spese</button>
-  <button data-tab="genera"><span class="ic">📤</span>Genera</button>
-  <button data-tab="imp"><span class="ic">⚙️</span>Impostazioni</button>
+  <button data-tab="spese" class="active"><i class="ic fa-solid fa-receipt"></i>Spese</button>
+  <button data-tab="genera"><i class="ic fa-solid fa-paper-plane"></i>Genera</button>
+  <button data-tab="imp"><i class="ic fa-solid fa-sliders"></i>Impostazioni</button>
 </nav>
 
 <!-- input fotocamera nascosto -->
@@ -189,7 +197,7 @@
 <!-- ===== SHEET: nuovo/modifica scontrino ===== -->
 <div class="overlay hidden" id="sheetOverlay">
   <div class="sheet">
-    <h2><span id="sheetTitle">Nuovo scontrino</span><button class="close" id="sheetClose">×</button></h2>
+    <h2><button class="close" id="sheetBack" aria-label="Indietro"><i class="fa-solid fa-arrow-left"></i></button><span class="ttl" id="sheetTitle">Nuovo scontrino</span><button class="close" id="sheetClose" aria-label="Chiudi"><i class="fa-solid fa-xmark"></i></button></h2>
     <img id="prev" class="previewimg hidden" />
     <div class="ocrline hidden" id="ocrStatus"><span class="spinner"></span><span>Lettura scontrino in corso…</span></div>
 
@@ -206,7 +214,7 @@
     </div>
 
     <div id="amtChips" class="hidden"></div>
-    <div id="capWarn" class="warnrow hidden"><span>⚠️</span><span id="capWarnTxt"></span></div>
+    <div id="capWarn" class="warnrow hidden"><i class="fa-solid fa-triangle-exclamation"></i><span id="capWarnTxt"></span></div>
 
     <div class="row">
       <div><label>Cliente / Sede</label><input id="fCliente"/></div>
@@ -230,9 +238,11 @@
     <input id="fNote" placeholder="es. pranzo di lavoro"/>
 
     <div style="height:14px"></div>
-    <button class="btn big" id="btnSalvaSpesa">Salva scontrino</button>
+    <button class="btn big" id="btnSalvaSpesa"><i class="fa-solid fa-check"></i> Salva scontrino</button>
     <div style="height:8px"></div>
-    <button class="btn ghost" id="btnCambiaFoto">📷 Cambia / aggiungi foto</button>
+    <button class="btn ghost" id="btnCambiaFoto"><i class="fa-solid fa-camera"></i> Cambia / aggiungi foto</button>
+    <div style="height:8px"></div>
+    <button class="btn ghost" id="btnIndietro"><i class="fa-solid fa-arrow-left"></i> Torna all'elenco</button>
     <div style="height:16px"></div>
   </div>
 </div>
@@ -246,8 +256,8 @@
 <script>
 /* ============ PWA manifest inline ============ */
 (function(){
-  const manifest={name:"Nota Spese Bluenext",short_name:"Nota Spese",start_url:".",display:"standalone",background_color:"#f4f6f9",theme_color:"#0b5cab",
-    icons:[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='512' height='512'%3E%3Crect width='512' height='512' rx='108' fill='%230b5cab'/%3E%3Ctext x='256' y='340' font-size='280' text-anchor='middle' fill='white' font-family='Arial'%3E%E2%82%AC%3C/text%3E%3C/svg%3E",sizes:"512x512",type:"image/svg+xml"}]};
+  const manifest={name:"Nota Spese Bluenext",short_name:"Nota Spese",start_url:".",display:"standalone",background_color:"#0B0320",theme_color:"#0B0320",
+    icons:[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='512' height='512'%3E%3Crect width='512' height='512' rx='108' fill='%230B0320'/%3E%3Ctext x='256' y='345' font-size='300' text-anchor='middle' fill='%2300FFA3' font-family='Arial' font-weight='bold'%3E%E2%82%AC%3C/text%3E%3C/svg%3E",sizes:"512x512",type:"image/svg+xml"}]};
   const blob=new Blob([JSON.stringify(manifest)],{type:"application/manifest+json"});
   const l=document.createElement("link");l.rel="manifest";l.href=URL.createObjectURL(blob);document.head.appendChild(l);
 })();
@@ -471,8 +481,14 @@ function openSheet(spesa){
   $("#fNote").value=spesa?spesa.note:"";
   onCartaChange();updateCap();
   $("#sheetOverlay").classList.remove("hidden");
+  try{history.pushState({sheet:1},"");}catch(_){}
 }
-function closeSheet(){$("#sheetOverlay").classList.add("hidden");editing=null;pendingPhoto=null;}
+function doCloseSheet(){$("#sheetOverlay").classList.add("hidden");editing=null;pendingPhoto=null;}
+function closeSheet(){
+  if(history.state&&history.state.sheet){history.back();} // il popstate chiude la scheda
+  else doCloseSheet();
+}
+window.addEventListener("popstate",()=>{ if(!$("#sheetOverlay").classList.contains("hidden"))doCloseSheet(); });
 function setTipo(v){currentTipo=v;$$("#segTipo button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));updateCap();}
 function onCartaChange(){$("#mistoRow").classList.toggle("hidden",$("#fCarta").value!=="misto");}
 function updateCap(){
@@ -524,14 +540,14 @@ function renderLista(){
   const box=$("#listaSpese");
   let list=SPESE;
   if(filtroMeseKey!=="tutti")list=SPESE.filter(s=>meseKey(s.data)===filtroMeseKey);
-  if(!list.length){box.innerHTML=`<div class="empty"><div class="ic">🧾</div><p>Nessuno scontrino ancora.<br>Tocca <b>＋ Scontrino</b> per iniziare.</p></div>`;$("#totaliSpese").innerHTML="";return;}
+  if(!list.length){box.innerHTML=`<div class="empty"><i class="ic fa-solid fa-receipt"></i><p style="margin-top:10px">Nessuno scontrino ancora.<br>Tocca <b>Scontrino</b> in basso a destra per iniziare.</p></div>`;$("#totaliSpese").innerHTML="";return;}
   box.innerHTML=list.map(s=>{
     const d=new Date(s.data+"T00:00:00");
     const g=GIORNI[d.getDay()];
     const over=isOver(s);
     const cartaTxt=s.carta==="az"?"aziendale":s.carta==="pers"?"personale":"misto";
     return `<div class="expense" data-id="${s.id}">
-      ${s.foto?`<img class="thumb" src="${s.foto}"/>`:`<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:22px">🧾</div>`}
+      ${s.foto?`<img class="thumb" src="${s.foto}"/>`:`<div class="thumb"><i class="fa-solid fa-receipt"></i></div>`}
       <div class="info">
         <div class="t1">${g} ${d.getDate()}/${d.getMonth()+1} · <span class="badge ${s.tipo==="cena"?"cena":""} ${over?"over":""}">${s.tipo}</span></div>
         <div class="t2">${s.cliente||""}${s.comune?" · "+s.comune:""} · ${s.persone} pers · ${cartaTxt}</div>
@@ -876,6 +892,8 @@ $("#fileCam").onchange=async e=>{
   }
 };
 $("#sheetClose").onclick=closeSheet;
+$("#sheetBack").onclick=closeSheet;
+$("#btnIndietro").onclick=closeSheet;
 $("#sheetOverlay").onclick=e=>{if(e.target.id==="sheetOverlay")closeSheet();};
 $$("#segTipo button").forEach(b=>b.onclick=()=>setTipo(b.dataset.v));
 $("#fCarta").onchange=onCartaChange;
