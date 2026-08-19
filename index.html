@@ -123,6 +123,8 @@
       <h2>Dati dipendente</h2>
       <label>Cognome e Nome</label>
       <input id="cfgDip" />
+      <label>Codice Fiscale</label>
+      <input id="cfgCF" />
       <label>Residenza / domicilio</label>
       <input id="cfgRes" />
       <label>Cliente / Sede predefinita</label>
@@ -228,7 +230,7 @@
 })();
 
 /* ============ Config ============ */
-const DEFAULT_CFG={dip:"Degli Esposti Giancarlo",res:"Via Val Della Torre 52/A, San Gillio 10040 Torino (TO)",cliente:"Bluenext",email:"speseetrasferte@bluenext.it",capP:15,capC:25};
+const DEFAULT_CFG={dip:"Degli Esposti Giancarlo",cf:"DGLGCR91C13L219O",res:"Via Val Della Torre 52/A, San Gillio 10040 Torino (TO)",cliente:"Bluenext",email:"speseetrasferte@bluenext.it",capP:15,capC:25};
 let CFG={...DEFAULT_CFG};
 const MESI=["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
 const GIORNI=["DOM","lun","mar","mer","gio","ven","SAB"];
@@ -452,11 +454,13 @@ function setTipo(v){currentTipo=v;$$("#segTipo button").forEach(b=>b.classList.t
 function onCartaChange(){$("#mistoRow").classList.toggle("hidden",$("#fCarta").value!=="misto");}
 function updateCap(){
   const imp=parseFloat($("#fImporto").value)||0;
-  const cap=currentTipo==="pranzo"?CFG.capP:currentTipo==="cena"?CFG.capC:null;
+  const np=parseInt($("#fPersone").value)||1;
+  const capBase=currentTipo==="pranzo"?CFG.capP:currentTipo==="cena"?CFG.capC:null;
+  const cap=capBase===null?null:capBase*np;
   const w=$("#capWarn");
   if(cap!==null&&imp>cap+0.001){
     w.classList.remove("hidden");
-    $("#capWarnTxt").textContent=`Importo € ${eur(imp)} oltre il tetto ${currentTipo} di € ${eur(cap)}. L'eccedenza (€ ${eur(imp-cap)}) di norma non è rimborsabile.`;
+    $("#capWarnTxt").textContent=`Importo € ${eur(imp)} oltre il tetto ${currentTipo} di € ${eur(cap)}${np>1?` (${np}×${eur(capBase)})`:""}. L'eccedenza (€ ${eur(imp-cap)}) di norma non è rimborsabile (verrà segnata come "trattenuta").`;
   }else{w.classList.add("hidden");}
 }
 async function salvaSpesa(){
@@ -583,60 +587,117 @@ function genGiustificativi(){
   return{doc,fn};
 }
 
-/* ============ PDF nota spese ============ */
+/* ============ PDF nota spese (modulo Bluenext, orizzontale) ============ */
+const AZIENDA={nome:"BLUENEXT SRL",piva:"04228480408",km:"0,55",divisa:"euro"};
+function giorniMese(y,m){return new Date(y,m,0).getDate();}
+function buildDay(meals){
+  const pr=meals.filter(m=>m.tipo==="pranzo"),ce=meals.filter(m=>m.tipo==="cena"),al=meals.filter(m=>m.tipo!=="pranzo"&&m.tipo!=="cena");
+  const oPr=pr.reduce((a,m)=>a+m.importo,0), nPr=pr.length?Math.max(...pr.map(m=>m.persone||1)):0;
+  const oCe=ce.reduce((a,m)=>a+m.importo,0), nCe=ce.length?Math.max(...ce.map(m=>m.persone||1)):0;
+  const altro=al.reduce((a,m)=>a+m.importo,0);
+  const trPr=pr.length?Math.max(0,oPr-CFG.capP*(nPr||1)):0;
+  const trCe=ce.length?Math.max(0,oCe-CFG.capC*(nCe||1)):0;
+  const totParz=oPr+oCe+altro;
+  const credito=meals.reduce((a,m)=>a+azImporto(m),0);
+  return {oPr,nPr,oCe,nCe,altro,trPr,trCe,totParz,credito,cliente:(meals[0]&&meals[0].cliente)||"",localita:(meals[0]&&meals[0].comune)||""};
+}
 function genNotaSpese(){
-  const l=speseSelezionate();
-  if(!l.length){toast("Nessuna spesa selezionata");return null;}
-  const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:"mm",format:"a4"});
+  const sel=speseSelezionate();
+  if(!sel.length){toast("Nessuna spesa selezionata");return null;}
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:"mm",format:"a4",orientation:"landscape"});
+  const PW=297, ML=6, MR=6, usable=PW-ML-MR;
+  const mesi=[...selMesi].sort();
+  mesi.forEach((key,mi)=>{
+    if(mi>0)doc.addPage();
+    const y=+key.split("-")[0], m=+key.split("-")[1];
+    const meals=SPESE.filter(s=>meseKey(s.data)===key);
+    const ng=giorniMese(y,m);
+    // ---- intestazione ----
+    doc.setFont("helvetica","bold");doc.setFontSize(8);doc.setTextColor(30);
+    doc.text(AZIENDA.nome,ML,8);
+    doc.setFontSize(13);doc.text("Nota Spese",PW/2,9,{align:"center"});
+    doc.setFontSize(8);doc.text("P.IVA "+AZIENDA.piva,PW-MR,8,{align:"right"});
+    doc.setDrawColor(120);doc.setLineWidth(.2);
+    let hy=13;
+    doc.setFont("helvetica","normal");doc.setFontSize(7.5);
+    doc.rect(ML,hy,usable,16);
+    doc.setFont("helvetica","bold");doc.setFontSize(9);
+    doc.text("NOTA SPESE DEL MESE DI:",ML+2,hy+5);
+    doc.setFontSize(12);doc.text(`${MESI[m-1]} ${y}`,ML+52,hy+5);
+    doc.setFontSize(8);doc.setFont("helvetica","normal");
+    doc.text("Dipendente/Collaboratore — Cognome Nome:",ML+90,hy+4);
+    doc.setFont("helvetica","bold");doc.setFontSize(9);
+    doc.text(CFG.dip,ML+150,hy+4);
+    doc.setFont("helvetica","normal");doc.setFontSize(8);
+    doc.text("Cod. Fisc.:",ML+90,hy+9);doc.setFont("helvetica","bold");doc.text(CFG.cf||"",ML+108,hy+9);
+    doc.setFont("helvetica","normal");
+    doc.text("Residenza o domicilio: "+CFG.res,ML+90,hy+13.5);
+    doc.setFontSize(6.5);doc.setTextColor(90);
+    const decl="Il sottoscritto, conscio delle sanzioni penali previste dall'art. 76 del D.P.R. n. 445 del 28/12/2000 per le ipotesi di falsità in atti e dichiarazioni mendaci, dichiara di aver sostenuto le spese indicate nel presente modulo.";
+    doc.text(doc.splitTextToSize(decl,84),ML+2,hy+9);
+    doc.setTextColor(30);
+    // ---- righe giorno ----
+    const body=[];
+    for(let g=1;g<=ng;g++){
+      const iso=`${y}-${String(m).padStart(2,"0")}-${String(g).padStart(2,"0")}`;
+      const dd=buildDay(meals.filter(s=>s.data===iso));
+      const wd=GIORNI[new Date(iso+"T00:00:00").getDay()];
+      body.push([
+        String(g), wd, "", `${g}-${MESI[m-1].slice(0,3).toLowerCase()}`,
+        dd.cliente, dd.localita, "0,00", "", eur(dd.altro), "",
+        dd.nPr||"", dd.oPr?eur(dd.oPr):"", dd.trPr?eur(dd.trPr):"",
+        dd.nCe||"", dd.oCe?eur(dd.oCe):"", dd.trCe?eur(dd.trCe):"",
+        dd.totParz?eur(dd.totParz):"", "", "", "",
+        dd.totParz?eur(dd.totParz):"", "", dd.credito?eur(dd.credito):""
+      ]);
+    }
+    const sum=k=>meals.reduce((a,s)=>a+ (buildDay([s]))[k],0);
+    const tOPr=meals.filter(s=>s.tipo==="pranzo").reduce((a,s)=>a+s.importo,0);
+    const tOCe=meals.filter(s=>s.tipo==="cena").reduce((a,s)=>a+s.importo,0);
+    let tTrPr=0,tTrCe=0,tParz=0,tCred=0,tAltro=0;
+    for(let g=1;g<=ng;g++){const iso=`${y}-${String(m).padStart(2,"0")}-${String(g).padStart(2,"0")}`;const dd=buildDay(meals.filter(s=>s.data===iso));tTrPr+=dd.trPr;tTrCe+=dd.trCe;tParz+=dd.totParz;tCred+=dd.credito;tAltro+=dd.altro;}
+    const foot=[["","Totali Parziali","","","","","0,00","",eur(tAltro),"","",eur(tOPr),eur(tTrPr),"",eur(tOCe),eur(tTrCe),eur(tParz),"","","0,00",eur(tParz),"0,00",eur(tCred)]];
+    doc.autoTable({
+      startY:hy+18,
+      head:[["Giorno","","Indennità trasferta (€)","Data","Cliente/ Commessa","Località","Rimb. km Importo","Auto strada","Parcheggi Taxi Biglietti","Hotel","Pers. pranzo","Pranzo","Pranzo Tratten.","Pers. cena","Cena","Cena Tratten.","Totale Parziale","Numero Persone","Pranzi/Cene rappr.","Carta Carburante","Totale Generale","Di cui Carta IP","Di cui Carta Credito"]],
+      body, foot,
+      theme:"grid",
+      styles:{fontSize:5.4,cellPadding:0.5,textColor:30,lineColor:[180,180,180],lineWidth:0.1,halign:"center",valign:"middle",overflow:"linebreak"},
+      headStyles:{fillColor:[220,220,220],textColor:20,fontSize:5,fontStyle:"bold"},
+      footStyles:{fillColor:[235,235,235],textColor:[150,0,0],fontStyle:"bold",fontSize:5.2},
+      columnStyles:{0:{cellWidth:7},1:{cellWidth:8},2:{cellWidth:13},3:{cellWidth:11},4:{cellWidth:17,halign:"left"},5:{cellWidth:19,halign:"left"},6:{cellWidth:13},7:{cellWidth:11},8:{cellWidth:13},9:{cellWidth:9},10:{cellWidth:10},11:{cellWidth:11},12:{cellWidth:12},13:{cellWidth:10},14:{cellWidth:11},15:{cellWidth:12},16:{cellWidth:13},17:{cellWidth:11},18:{cellWidth:14},19:{cellWidth:12},20:{cellWidth:13},21:{cellWidth:10},22:{cellWidth:13}},
+      margin:{left:ML,right:MR},
+      tableWidth:"wrap",
+      didParseCell:d=>{
+        if(d.section==="body"){
+          if(d.column.index===12||d.column.index===15||d.column.index===20)d.cell.styles.textColor=[190,0,0];
+          if(d.column.index===16)d.cell.styles.fillColor=[255,251,214];
+          if((new Date(`${y}-${String(m).padStart(2,"0")}-${String(d.row.index+1).padStart(2,"0")}T00:00:00`)).getDay()%6===0)d.cell.styles.fillColor=d.column.index===16?[255,251,214]:[238,238,238];
+        }
+      }
+    });
+    // ---- riepilogo rimborso ----
+    const totImporto=meals.reduce((a,s)=>a+s.importo,0);
+    const sostenute=totImporto-tCred;               // di tasca propria (non su carta credito)
+    const daRimborsare=sostenute-(tTrPr+tTrCe);      // meno le eccedenze oltre tetto
+    let fy=doc.lastAutoTable.finalY+4;
+    doc.setDrawColor(120);doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(30);
+    const rx=PW-MR-110;
+    const rows=[["Totale spese sostenute in euro",eur(sostenute)],["Trattenute Spese extra regolamento (euro)",eur(tTrPr+tTrCe)],["Anticipi ricevuti in euro","0,00"],["Totale spese da rimborsare in euro",eur(daRimborsare)]];
+    rows.forEach((r,i)=>{
+      doc.rect(rx,fy+i*6,88,6);doc.rect(rx+88,fy+i*6,22,6);
+      doc.text(r[0],rx+2,fy+i*6+4);
+      doc.setFont("helvetica","bold");doc.text("€ "+r[1],rx+108,fy+i*6+4,{align:"right"});doc.setFont("helvetica","normal");
+    });
+    // firma
+    doc.setFontSize(8);
+    doc.text("Firma lavoratore/collaboratore: ______________________",ML,fy+6);
+    doc.text("Importo al Km: "+AZIENDA.km+"    Divisa: "+AZIENDA.divisa,ML,fy+13);
+    doc.setFontSize(7);doc.setTextColor(90);
+    doc.text("ULTERIORE DETTAGLIO SPESE:",ML,fy+22);doc.rect(ML,fy+23,150,10);
+    doc.setTextColor(30);
+  });
   const {mesiStr,annoStr}=periodoTesto();
-  let y=14;
-  doc.setFontSize(15);doc.setTextColor(11,92,171);
-  doc.text("NOTA SPESE",14,y);
-  doc.setFontSize(11);doc.setTextColor(30);
-  doc.text(`${mesiStr} ${annoStr}`,196,y,{align:"right"});
-  y+=8;
-  doc.setDrawColor(11,92,171);doc.setLineWidth(.5);doc.line(14,y,196,y);y+=7;
-  doc.setFontSize(10);doc.setTextColor(30);
-  doc.text(`Dipendente/Collaboratore:  ${CFG.dip}`,14,y);y+=5;
-  doc.setTextColor(90);doc.setFontSize(9);
-  doc.text(`Residenza/domicilio:  ${CFG.res}`,14,y);y+=6;
-
-  // tabella
-  const body=l.map(s=>{
-    const d=new Date(s.data+"T00:00:00");
-    const az=azImporto(s);
-    return[
-      `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`,
-      GIORNI[d.getDay()],
-      (s.tipo||"").charAt(0).toUpperCase()+(s.tipo||"").slice(1),
-      s.cliente||"", s.comune||"", String(s.persone||1),
-      eur(s.importo), eur(az), eur(s.importo-az)
-    ];
-  });
-  const tot=l.reduce((a,s)=>a+s.importo,0);
-  const totAz=l.reduce((a,s)=>a+azImporto(s),0);
-  doc.autoTable({
-    startY:y,
-    head:[["Data","G.","Pasto","Cliente/Sede","Comune","N°","Importo €","Carta az. €","Carta pers. €"]],
-    body,
-    foot:[["","","","","","Totali",eur(tot),eur(totAz),eur(tot-totAz)]],
-    styles:{fontSize:8.5,cellPadding:1.8,textColor:30},
-    headStyles:{fillColor:[11,92,171],textColor:255,fontSize:8.5},
-    footStyles:{fillColor:[238,242,247],textColor:[8,63,119],fontStyle:"bold"},
-    columnStyles:{0:{cellWidth:14},1:{cellWidth:10},2:{cellWidth:18},5:{cellWidth:9,halign:"center"},6:{halign:"right",cellWidth:20},7:{halign:"right",cellWidth:20},8:{halign:"right",cellWidth:20}},
-    margin:{left:14,right:14}
-  });
-  let fy=doc.lastAutoTable.finalY+8;
-  doc.setFontSize(10);doc.setTextColor(11,92,171);
-  doc.text(`Totale spese: € ${eur(tot)}`,14,fy);
-  doc.text(`Da rimborsare (carta personale): € ${eur(tot-totAz)}`,196,fy,{align:"right"});
-  fy+=9;
-  doc.setFontSize(7.5);doc.setTextColor(90);
-  const decl="Il sottoscritto, conscio delle sanzioni penali previste dall'art. 76 del D.P.R. n. 445 del 28 dicembre 2000 per le ipotesi di falsità in atti e dichiarazioni mendaci, dichiara di aver sostenuto le spese indicate nel presente modulo.";
-  doc.text(doc.splitTextToSize(decl,182),14,fy);fy+=12;
-  doc.setTextColor(30);doc.setFontSize(9);
-  doc.text("Data: ______________",14,fy);
-  doc.text("Firma lavoratore/collaboratore: ______________________",196,fy,{align:"right"});
   const fn=`NotaSpese_${mesiStr.replace(/ /g,"")}_${annoStr}_${CFG.dip.split(" ").slice(-2).join("")}.pdf`;
   return{doc,fn};
 }
@@ -672,12 +733,12 @@ async function preparaMail(){
 /* ============ Impostazioni ============ */
 async function loadCfg(){
   const c=await dbGet("cfg","main");if(c)CFG={...DEFAULT_CFG,...c.val};
-  $("#cfgDip").value=CFG.dip;$("#cfgRes").value=CFG.res;$("#cfgCliente").value=CFG.cliente;
+  $("#cfgDip").value=CFG.dip;$("#cfgCF").value=CFG.cf||"";$("#cfgRes").value=CFG.res;$("#cfgCliente").value=CFG.cliente;
   $("#cfgEmail").value=CFG.email;$("#cfgCapP").value=CFG.capP;$("#cfgCapC").value=CFG.capC;
   $("#hdrSub").textContent="Bluenext · "+CFG.dip;
 }
 async function saveCfg(){
-  CFG={dip:$("#cfgDip").value.trim(),res:$("#cfgRes").value.trim(),cliente:$("#cfgCliente").value.trim(),
+  CFG={dip:$("#cfgDip").value.trim(),cf:$("#cfgCF").value.trim(),res:$("#cfgRes").value.trim(),cliente:$("#cfgCliente").value.trim(),
     email:$("#cfgEmail").value.trim(),capP:parseFloat($("#cfgCapP").value)||15,capC:parseFloat($("#cfgCapC").value)||25};
   await dbPut("cfg",{k:"main",val:CFG});$("#hdrSub").textContent="Bluenext · "+CFG.dip;
   renderAll();toast("Impostazioni salvate ✓");
@@ -726,6 +787,7 @@ $("#sheetOverlay").onclick=e=>{if(e.target.id==="sheetOverlay")closeSheet();};
 $$("#segTipo button").forEach(b=>b.onclick=()=>setTipo(b.dataset.v));
 $("#fCarta").onchange=onCartaChange;
 $("#fImporto").oninput=updateCap;
+$("#fPersone").oninput=updateCap;
 $("#btnSalvaSpesa").onclick=salvaSpesa;
 $("#btnSaveCfg").onclick=saveCfg;
 $("#btnExport").onclick=exportBackup;
