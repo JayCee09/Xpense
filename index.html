@@ -252,6 +252,8 @@
     <button class="btn ghost" id="btnCambiaFoto"><i class="fa-solid fa-camera"></i> Cambia / aggiungi foto</button>
     <div style="height:8px"></div>
     <button class="btn ghost" id="btnIndietro"><i class="fa-solid fa-arrow-left"></i> Torna all'elenco</button>
+    <div style="height:8px"></div>
+    <button class="btn danger hidden" id="btnElimina"><i class="fa-solid fa-trash-can"></i> Elimina scontrino</button>
     <div style="height:16px"></div>
   </div>
 </div>
@@ -480,6 +482,7 @@ function openSheet(spesa){
   if(pendingPhoto){p.src=pendingPhoto;p.classList.remove("hidden");}else{p.classList.add("hidden");}
   $("#ocrStatus").classList.add("hidden");
   $("#amtChips").classList.add("hidden");$("#amtChips").innerHTML="";
+  $("#btnElimina").classList.toggle("hidden", !spesa); // "Elimina" solo in modifica
   setTipo(spesa?spesa.tipo:"pranzo");
   $("#fData").value=spesa?spesa.data:"";
   $("#fImporto").value=spesa?spesa.importo:"";
@@ -534,6 +537,13 @@ async function salvaSpesa(){
   }
   await loadSpese();closeSheet();toast(editing?"Scontrino aggiornato":"Scontrino salvato ✓");
   pushSpesa(s); // sincronizza in background (se configurato)
+}
+async function deleteSpesa(){
+  if(!editing)return;
+  if(!confirm("Eliminare questo scontrino? L'operazione non si può annullare."))return;
+  const t={...editing,deleted:true,updated:Date.now()};
+  try{ await dbPut("spese",t); }catch(e){ toast("Errore: "+(e&&e.message?e.message:e)); return; }
+  await loadSpese(); closeSheet(); toast("Scontrino eliminato"); pushSpesa(t);
 }
 
 /* ============ Rendering liste ============ */
@@ -974,6 +984,7 @@ $("#fCarta").onchange=onCartaChange;
 $("#fImporto").oninput=updateCap;
 $("#fPersone").oninput=updateCap;
 $("#btnSalvaSpesa").onclick=salvaSpesa;
+$("#btnElimina").onclick=deleteSpesa;
 $("#btnSaveCfg").onclick=saveCfg;
 $("#btnSaveSb").onclick=async()=>{CFG={...CFG,sbUrl:$("#cfgSbUrl").value.trim(),sbKey:$("#cfgSbKey").value.trim()};await dbPut("cfg",{k:"main",val:CFG});initSupabase();await refreshAuth();toast("Connessione salvata");};
 $("#btnLogin").onclick=authLogin;
