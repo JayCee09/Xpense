@@ -29,7 +29,9 @@
   .fab{font-family:'Orbitron',sans-serif;letter-spacing:1.5px}
   header .logo i{color:var(--mint)}
   header .sub{font-size:12px;opacity:.9;margin-top:-2px;color:var(--mint)}
-  main{padding:14px;max-width:720px;margin:0 auto}
+  main{padding:14px;max-width:1200px;margin:0 auto}
+  .expense{padding:14px 16px}
+  @media(min-width:900px){ .expense .thumb{width:64px;height:64px} .expense .info .t1{font-size:16px} .expense .amt{font-size:17px} }
   .card{background:linear-gradient(180deg,var(--card),var(--bg2));border:1px solid var(--bordo);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 0 0 1px rgba(108,0,255,.12),0 8px 24px rgba(0,0,0,.45)}
   h2{font-size:14px;margin:0 0 10px;color:var(--mint);text-transform:uppercase;letter-spacing:.08em;font-weight:800}
   label{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 4px;font-weight:700}
@@ -825,20 +827,22 @@ async function preparaMail(){
   const files=[];
   if(n)files.push(new File([n.doc.output("blob")],n.fn,{type:"application/pdf"}));
   if(g)files.push(new File([g.doc.output("blob")],g.fn,{type:"application/pdf"}));
-  // Web Share con file
-  if(navigator.canShare&&navigator.canShare({files})){
+  // Su TOCCO (telefono) la condivisione nativa allega bene i file mantenendo il testo.
+  // Su DESKTOP la condivisione di Windows perde destinatario/oggetto/corpo → usiamo mailto + download.
+  const isTouch = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+  if(isTouch && navigator.canShare && navigator.canShare({files})){
     try{
       await navigator.share({title:oggetto,text:corpo,files});
       toast("Condiviso — completa in Outlook/Mail");
       return;
     }catch(e){ if(e.name==="AbortError")return; }
   }
-  // Fallback: scarica i PDF + apri mail senza allegati
+  // Desktop: scarica i 2 PDF e apri la mail GIÀ compilata (destinatario, oggetto, corpo)
   if(n)n.doc.save(n.fn);
   if(g)g.doc.save(g.fn);
   const mail=`mailto:${encodeURIComponent(CFG.email)}?subject=${encodeURIComponent(oggetto)}&body=${encodeURIComponent(corpo)}`;
-  setTimeout(()=>{window.location.href=mail;},600);
-  toast("PDF scaricati — allegali alla mail aperta");
+  setTimeout(()=>{window.location.href=mail;},500);
+  toast("PDF scaricati — la mail si apre già compilata: allega i 2 PDF");
 }
 
 /* ============ Impostazioni ============ */
