@@ -212,9 +212,9 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3/dist/jspdf.plugin.autotable.min.js"></script>
 <script>
 /* ============ PWA manifest inline ============ */
 (function(){
@@ -268,24 +268,40 @@ function isOver(s){
 }
 
 /* ============ OCR ============ */
+let ocrWorker=null, ocrReady=false, ocrInit=null;
+async function ensureWorker(onProgress){
+  if(ocrReady) return ocrWorker;
+  if(ocrInit) return ocrInit;
+  ocrInit=(async()=>{
+    if(typeof Tesseract==="undefined") throw new Error("motore non caricato (connessione assente?)");
+    ocrWorker=await Tesseract.createWorker("ita",1,{logger:m=>{if(onProgress)onProgress(m);}});
+    ocrReady=true; return ocrWorker;
+  })().catch(e=>{ocrInit=null;throw e;});
+  return ocrInit;
+}
 async function runOCR(dataURL){
   const st=$("#ocrStatus");st.classList.remove("hidden");
+  const sp=st.querySelector(".spinner"), tx=st.querySelector("span:last-child");
+  sp.classList.remove("hidden");
+  tx.textContent="Preparo il lettore…";
   try{
-    const {data}=await Tesseract.recognize(dataURL,"ita",{});
+    const w=await ensureWorker(m=>{
+      if(m.status==="recognizing text"){tx.textContent="Lettura scontrino… "+Math.round((m.progress||0)*100)+"%";}
+      else if(m.status&&/load|initial|download|fetch/i.test(m.status)){tx.textContent="Scarico il lettore OCR… (solo la prima volta, attendi)";}
+    });
+    const {data}=await w.recognize(dataURL);
     const txt=(data&&data.text)||"";
     const imp=parseImporto(txt);
     const dt=parseData(txt);
     if(imp&&!$("#fImporto").value){$("#fImporto").value=imp.toFixed(2);}
     if(dt&&!$("#fData").value){$("#fData").value=dt;}
-    if(imp){ // classifica tipo se non toccato
-      autoTipo(imp);
-    }
-    st.querySelector("span:last-child").textContent = (imp||dt)? "Letto: "+(dt?dt+" ":"")+(imp?("€ "+imp.toFixed(2)):"")+" — controlla e correggi" : "Non sono riuscito a leggere: inserisci a mano";
-    st.querySelector(".spinner").classList.add("hidden");
+    if(imp){autoTipo(imp);}
+    sp.classList.add("hidden");
+    tx.textContent=(imp||dt)? "Letto: "+(dt?dt+" ":"")+(imp?("€ "+imp.toFixed(2)):"")+" — controlla e correggi" : "Non sono riuscito a leggere i valori: inseriscili a mano";
     updateCap();
   }catch(e){
-    st.querySelector("span:last-child").textContent="OCR non disponibile offline: inserisci i dati a mano";
-    st.querySelector(".spinner").classList.add("hidden");
+    sp.classList.add("hidden");
+    tx.textContent="OCR non riuscito ("+(e&&e.message?e.message:e)+"). Inserisci i dati a mano.";
   }
 }
 function autoTipo(imp){
