@@ -63,6 +63,8 @@
   .spinner{width:16px;height:16px;border:2px solid var(--bordo);border-top-color:var(--blu);border-radius:50%;animation:spin .8s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
   .warnrow{background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:8px 10px;font-size:13px;margin-top:8px;display:flex;gap:8px;align-items:flex-start}
+  .chip{display:inline-block;margin:6px 6px 0 0;padding:9px 13px;border:1px solid var(--bordo);border-radius:20px;background:#eef2f7;color:var(--blu-scuro);font-weight:700;font-size:15px}
+  .chip:active{background:var(--blu);color:#fff}
   .seg{display:flex;border:1px solid var(--bordo);border-radius:10px;overflow:hidden}
   .seg button{flex:1;background:#fff;border:none;padding:11px;font-size:14px;color:var(--muted);font-weight:600}
   .seg button.on{background:var(--blu);color:#fff}
@@ -179,6 +181,7 @@
       <div><label>Importo €</label><input id="fImporto" type="number" inputmode="decimal" step="0.01" placeholder="0,00"/></div>
     </div>
 
+    <div id="amtChips" class="hidden"></div>
     <div id="capWarn" class="warnrow hidden"><span>⚠️</span><span id="capWarnTxt"></span></div>
 
     <div class="row">
@@ -292,14 +295,24 @@ async function runOCR(dataURL){
     });
     const proc=await preprocessForOCR(dataURL);
     const {data}=await w.recognize(proc);
-    const txt=(data&&data.text)||"";
-    const imp=parseImporto(txt);
+    let txt=(data&&data.text)||"";
+    let a=analyzeAmounts(txt);
+    if(!a.best || a.list.length<2){ // seconda passata con segmentazione diversa
+      try{
+        await w.setParameters({tessedit_pageseg_mode:"4"});
+        const r2=await w.recognize(proc); txt+="\n"+((r2.data&&r2.data.text)||"");
+        await w.setParameters({tessedit_pageseg_mode:"6"});
+        a=analyzeAmounts(txt);
+      }catch(_){}
+    }
+    const imp=a.best;
     const dt=parseData(txt);
     if(imp&&!$("#fImporto").value){$("#fImporto").value=imp.toFixed(2);}
     if(dt&&!$("#fData").value){$("#fData").value=dt;}
     if(imp){autoTipo(imp);}
+    renderChips(a.list);
     sp.classList.add("hidden");
-    tx.textContent=(imp||dt)? "Letto: "+(dt?dt+" ":"")+(imp?("€ "+imp.toFixed(2)):"")+" — controlla e correggi" : "Non sono riuscito a leggere i valori: inseriscili a mano";
+    tx.textContent=(imp||dt)? "Letto: "+(dt?dt+" ":"")+(imp?("€ "+imp.toFixed(2)):"")+" — controlla (o tocca l'importo giusto qui sotto)" : "Non sono riuscito a leggere i valori: inseriscili a mano";
     updateCap();
   }catch(e){
     sp.classList.add("hidden");
@@ -310,30 +323,41 @@ function autoTipo(imp){
   // euristica: importo entro tetto pranzo -> pranzo, altrimenti cena
   if(imp<=CFG.capP+0.001){setTipo("pranzo");}else{setTipo("cena");}
 }
-function parseImporto(txt){
+function analyzeAmounts(txt){
   const lines=txt.split(/\n/).map(l=>l.trim()).filter(Boolean);
   const numRe=/(\d{1,4})[.,](\d{2})(?!\d)/g;
-  // righe da ignorare del tutto: IVA, imponibile, imposta, aliquota, resto, subtotale, dati fiscali
+  const intRe=/(?:^|[^\d.,])(\d{3,6})(?![\d.,])/g; // interi: virgola persa sul totale grande
   const EXCL=/IMPOST|IMPONIB|ALIQU|\bIVA\b|RESTO|SUBTOT|SCONTR|C\.?\s?F\b|P\.?\s?IVA|CODICE|NUMERO|PROGR|TEL\b|CAP\b/;
-  // parole che indicano il totale da pagare
   const STRONG=/TOTAL|IMPORTO|DA\s*PAGARE|PAGATO|SALDO/;
   const cands=[];
   lines.forEach(line=>{
     const U=line.toUpperCase();
     if(EXCL.test(U))return;
+    const strong=STRONG.test(U);
     const nums=[];let m;
-    while((m=numRe.exec(line))){const v=parseFloat(m[1]+"."+m[2]);if(v>0&&v<=1000)nums.push(v);}
-    if(!nums.length)return;
-    let score=0;
-    if(STRONG.test(U))score+=6;
-    if(/EURO|€/.test(U))score+=1;
-    nums.forEach(v=>cands.push({v,score}));
+    while((m=numRe.exec(line))){const v=parseFloat(m[1]+"."+m[2]);if(v>0&&v<=2000)nums.push(v);}
+    if(nums.length){const score=(strong?6:0)+(/EURO|€/.test(U)?1:0);nums.forEach(v=>cands.push({v,score}));}
+    else if(strong){ // riga totale senza decimali: recupera intero come centesimi (es. 2400 -> 24,00)
+      let im;while((im=intRe.exec(line))){const v=parseInt(im[1],10)/100;if(v>=1&&v<=2000)cands.push({v,score:5});}
+    }
   });
-  if(!cands.length)return null;
-  const strong=cands.filter(c=>c.score>=6);
-  const pool=strong.length?strong:cands;      // se c'è una riga "totale" usa quella, altrimenti il massimo
-  pool.sort((a,b)=>(b.score-a.score)||(b.v-a.v));
-  return pool[0].v;
+  if(!cands.length)return{best:null,list:[]};
+  const map=new Map();
+  cands.forEach(c=>{const k=c.v.toFixed(2);if(!map.has(k)||map.get(k).score<c.score)map.set(k,c);});
+  const uniq=[...map.values()].sort((a,b)=>(b.score-a.score)||(b.v-a.v));
+  const strong=uniq.filter(c=>c.score>=5);
+  const best=(strong.length?strong:uniq)[0];
+  return {best:best?best.v:null, list:uniq.map(c=>c.v)};
+}
+function parseImporto(txt){return analyzeAmounts(txt).best;}
+function renderChips(list){
+  const box=$("#amtChips");
+  const uniq=[...new Set(list.map(v=>v.toFixed(2)))].slice(0,6);
+  if(uniq.length<2){box.classList.add("hidden");box.innerHTML="";return;}
+  box.classList.remove("hidden");
+  box.innerHTML='<div class="small muted" style="margin-top:8px">Importi rilevati — tocca quello giusto:</div>'+
+    uniq.map(v=>`<button type="button" class="chip" data-v="${v}">€ ${v.replace('.',',')}</button>`).join("");
+  $$("#amtChips .chip").forEach(b=>b.onclick=()=>{$("#fImporto").value=b.dataset.v;autoTipo(parseFloat(b.dataset.v));updateCap();});
 }
 function parseData(txt){
   // tollera errori OCR comuni: O/o->0, l/I->1, B->8 dentro token di tipo data
@@ -370,7 +394,7 @@ function fileToDataURL(file,max,q){
     img.src=url;
   });
 }
-/* Preelaborazione per OCR: scala di grigi + stretch contrasto (migliora scontrini termici) */
+/* Preelaborazione per OCR: scala di grigi + binarizzazione Otsu (ottima sugli scontrini termici) */
 function preprocessForOCR(dataURL){
   return new Promise(res=>{
     const img=new Image();
@@ -381,16 +405,17 @@ function preprocessForOCR(dataURL){
       const cv=document.createElement("canvas");cv.width=w;cv.height=h;
       const ctx=cv.getContext("2d");ctx.drawImage(img,0,0,w,h);
       try{
-        const id=ctx.getImageData(0,0,w,h),d=id.data,n=w*h,gray=new Uint8Array(n);
-        let min=255,max=0;
-        for(let i=0,p=0;i<d.length;i+=4,p++){const g=(d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114)|0;gray[p]=g;if(g<min)min=g;if(g>max)max=g;}
-        const range=Math.max(1,max-min);
-        for(let i=0,p=0;i<d.length;i+=4,p++){
-          let g=(gray[p]-min)*255/range;           // stretch dinamico
-          g=g<120?g*0.7:120+(g-120)*1.35;           // aumenta contrasto
-          if(g<0)g=0;if(g>255)g=255;
-          d[i]=d[i+1]=d[i+2]=g;
-        }
+        const id=ctx.getImageData(0,0,w,h),d=id.data,n=w*h;
+        const gray=new Uint8Array(n),hist=new Array(256).fill(0);
+        for(let i=0,p=0;i<d.length;i+=4,p++){const g=(d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114)|0;gray[p]=g;hist[g]++;}
+        // soglia di Otsu
+        let sum=0;for(let t=0;t<256;t++)sum+=t*hist[t];
+        let sumB=0,wB=0,maxVar=-1,thr=127;
+        for(let t=0;t<256;t++){wB+=hist[t];if(!wB)continue;const wF=n-wB;if(wF<=0)break;sumB+=t*hist[t];
+          const mB=sumB/wB,mF=(sum-sumB)/wF,between=wB*wF*(mB-mF)*(mB-mF);
+          if(between>maxVar){maxVar=between;thr=t;}}
+        const T=thr+6; // leggero bias per non perdere tratti sottili
+        for(let i=0,p=0;i<d.length;i+=4,p++){const v=gray[p]<=T?0:255;d[i]=d[i+1]=d[i+2]=v;}
         ctx.putImageData(id,0,0);
         res(cv.toDataURL("image/png"));
       }catch(e){res(dataURL);}
@@ -408,6 +433,7 @@ function openSheet(spesa){
   const p=$("#prev");
   if(pendingPhoto){p.src=pendingPhoto;p.classList.remove("hidden");}else{p.classList.add("hidden");}
   $("#ocrStatus").classList.add("hidden");
+  $("#amtChips").classList.add("hidden");$("#amtChips").innerHTML="";
   setTipo(spesa?spesa.tipo:"pranzo");
   $("#fData").value=spesa?spesa.data:"";
   $("#fImporto").value=spesa?spesa.importo:"";
