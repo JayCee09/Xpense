@@ -91,6 +91,13 @@
   .empty .ic{font-size:44px;color:var(--purple)}
   a.link{color:var(--mint);font-weight:700;text-decoration:none}
   .infoline{font-size:12.5px;color:var(--muted);margin-top:6px}
+  .iconbtn{position:relative;flex:none;width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(0,255,163,.35);color:#fff;font-size:16px;display:flex;align-items:center;justify-content:center;margin-left:8px}
+  .iconbtn:active{background:rgba(0,255,163,.2)}
+  .iconbtn[title]:hover::after{content:attr(title);position:absolute;top:46px;right:0;white-space:nowrap;background:#1b0f40;color:var(--mint);border:1px solid var(--mint);font-size:11px;padding:4px 8px;border-radius:8px;z-index:30;box-shadow:0 0 12px rgba(0,255,163,.35)}
+  .authwrap{position:fixed;inset:0;z-index:90;overflow:auto;background:radial-gradient(1000px 500px at 50% -10%,rgba(108,0,255,.35),transparent 60%),var(--bg);display:flex;align-items:center;justify-content:center;padding:20px;padding-top:calc(env(safe-area-inset-top) + 20px)}
+  .authcard{width:100%;max-width:420px;background:linear-gradient(180deg,var(--card),var(--bg2));border:1px solid var(--bordo);border-radius:16px;padding:22px;box-shadow:0 0 0 1px rgba(0,255,163,.15),0 12px 40px rgba(0,0,0,.5)}
+  .authlogo{font-family:'Orbitron',sans-serif;font-size:28px;font-weight:800;letter-spacing:3px;color:#fff;text-align:center;text-shadow:0 0 14px rgba(0,255,163,.7);margin-bottom:4px}
+  .authlogo i{color:var(--mint)}
 </style>
 </head>
 <body>
@@ -99,6 +106,8 @@
     <div class="logo"><i class="fa-solid fa-bolt"></i> Xpense</div>
     <div class="sub" id="hdrSub">Bluenext · rimborsi trasferta</div>
   </div>
+  <button class="iconbtn" id="hdrSettings" title="Impostazioni" aria-label="Impostazioni"><i class="fa-solid fa-gear"></i></button>
+  <button class="iconbtn hidden" id="hdrAuth" title="Esci" aria-label="Esci"><i class="fa-solid fa-right-from-bracket"></i></button>
 </header>
 
 <main>
@@ -136,6 +145,7 @@
 
   <!-- ===== TAB IMPOSTAZIONI ===== -->
   <section id="tab-imp" class="hidden">
+    <button class="btn ghost" id="btnImpBack" style="margin-bottom:12px"><i class="fa-solid fa-arrow-left"></i> Indietro</button>
     <div class="card">
       <h2>Dati dipendente</h2>
       <label>Cognome e Nome</label>
@@ -165,18 +175,12 @@
       <input id="cfgSbKey" placeholder="eyJhbGciOi..." autocapitalize="off" autocorrect="off"/>
       <div style="height:8px"></div>
       <button class="btn" id="btnSaveSb">Salva connessione</button>
-      <div style="height:14px"></div>
+      <div style="height:12px"></div>
       <div class="small muted" id="authState">Sync non configurata</div>
-      <label>Email account sync</label>
-      <input id="sbEmail" type="email" autocomplete="username" autocapitalize="off" autocorrect="off"/>
-      <label>Password</label>
-      <input id="sbPass" type="password" autocomplete="current-password"/>
       <div style="height:8px"></div>
-      <button class="btn" id="btnLogin">Accedi / Registrati</button>
-      <button class="btn ghost hidden" id="btnLogout">Esci</button>
-      <div style="height:10px"></div>
       <button class="btn secondary" id="btnSyncNow"><i class="fa-solid fa-arrows-rotate"></i> Sincronizza ora</button>
       <div class="infoline" id="syncStatus"></div>
+      <div class="infoline">L'accesso (login/registrazione) si fa dalla schermata iniziale; qui inserisci solo l'indirizzo del progetto e la chiave.</div>
     </div>
     <div class="card">
       <h2>Dati e backup</h2>
@@ -197,8 +201,29 @@
 <nav class="tabbar">
   <button data-tab="spese" class="active"><i class="ic fa-solid fa-receipt"></i>Spese</button>
   <button data-tab="genera"><i class="ic fa-solid fa-paper-plane"></i>Genera</button>
-  <button data-tab="imp"><i class="ic fa-solid fa-sliders"></i>Impostazioni</button>
 </nav>
+
+<!-- ===== SCHERMATA ACCESSO ===== -->
+<div class="authwrap hidden" id="authGate">
+  <div class="authcard">
+    <div class="authlogo"><i class="fa-solid fa-bolt"></i> XPENSE</div>
+    <p class="small muted" style="text-align:center;margin:6px 0 16px">Accedi o registrati per sincronizzare le spese su tutti i tuoi dispositivi.</p>
+    <label>Email</label>
+    <input id="gEmail" type="email" autocomplete="username" autocapitalize="off" autocorrect="off"/>
+    <label>Password</label>
+    <input id="gPass" type="password" autocomplete="current-password"/>
+    <div style="height:14px"></div>
+    <button class="btn" id="gLogin"><i class="fa-solid fa-right-to-bracket"></i> Accedi</button>
+    <div style="height:8px"></div>
+    <button class="btn secondary" id="gRegister"><i class="fa-solid fa-user-plus"></i> Registrati</button>
+    <div class="infoline" id="gStatus"></div>
+    <div style="height:14px"></div>
+    <button class="btn ghost" id="gConfig"><i class="fa-solid fa-gear"></i> Configura sincronizzazione</button>
+    <div style="height:8px"></div>
+    <button class="btn ghost" id="gOffline">Continua senza accesso (solo questo dispositivo)</button>
+    <div class="infoline" id="gConfigHint"></div>
+  </div>
+</div>
 
 <!-- input fotocamera nascosto -->
 <input type="file" id="fileCam" accept="image/*" capture="environment" class="hidden" />
@@ -894,33 +919,45 @@ function initSupabase(){
   }catch(e){sbLog("Config sync non valida: "+(e.message||e));}
   return false;
 }
-async function refreshAuth(){
+function updateAuthUI(){
   const st=$("#authState");
-  if(!SB){if(st)st.textContent="Sync non configurata";toggleAuthBtns(false);return;}
-  try{const {data}=await SB.auth.getUser();sbUser=(data&&data.user)||null;}catch(_){sbUser=null;}
-  if(st)st.textContent=sbUser?("Connesso: "+(sbUser.email||sbUser.id)):"Non connesso";
-  toggleAuthBtns(!!sbUser);
-}
-function toggleAuthBtns(logged){
-  const bi=$("#btnLogin"),bo=$("#btnLogout");
-  if(bi)bi.classList.toggle("hidden",logged);
-  if(bo)bo.classList.toggle("hidden",!logged);
-}
-async function authLogin(){
-  if(!SB){toast("Prima salva URL e chiave Supabase");return;}
-  const email=$("#sbEmail").value.trim(),pw=$("#sbPass").value;
-  if(!email||!pw){toast("Inserisci email e password");return;}
-  sbLog("Accesso in corso…");
-  let r=await SB.auth.signInWithPassword({email,password:pw});
-  if(r.error){
-    const su=await SB.auth.signUp({email,password:pw});
-    if(su.error){sbLog("Errore: "+su.error.message);toast("Accesso fallito");return;}
-    r=await SB.auth.signInWithPassword({email,password:pw});
-    if(r.error){sbLog("Account creato: se il progetto richiede conferma via email, confermala e rifai 'Accedi'.");return;}
+  if(st)st.textContent = !SB ? "Sync non configurata" : (sbUser? ("Connesso: "+(sbUser.email||sbUser.id)) : "Non connesso");
+  const btn=$("#hdrAuth"), ic=btn&&btn.querySelector("i");
+  if(btn){
+    btn.classList.remove("hidden");
+    if(sbUser){ btn.title="Esci"; btn.setAttribute("aria-label","Esci"); if(ic)ic.className="fa-solid fa-right-from-bracket"; }
+    else { btn.title="Accedi"; btn.setAttribute("aria-label","Accedi"); if(ic)ic.className="fa-solid fa-right-to-bracket"; }
   }
-  await refreshAuth();sbLog("Connesso ✓");toast("Connesso");syncNow(true);
+  const hint=$("#gConfigHint");
+  if(hint)hint.textContent = SB? "" : "Sincronizzazione non ancora configurata: tocca \"Configura sincronizzazione\" e inserisci URL e chiave Supabase.";
 }
-async function authLogout(){try{if(SB)await SB.auth.signOut();}catch(_){}sbUser=null;await refreshAuth();sbLog("Disconnesso");}
+async function refreshAuth(){
+  if(!SB){sbUser=null;updateAuthUI();return;}
+  try{const {data}=await SB.auth.getUser();sbUser=(data&&data.user)||null;}catch(_){sbUser=null;}
+  updateAuthUI();
+}
+function showAuthGate(show){ $("#authGate").classList.toggle("hidden",!show); if(show){$("#gStatus").textContent="";updateAuthUI();} }
+async function gateLogin(){
+  if(!SB){$("#gStatus").textContent="Configura prima la sincronizzazione (pulsante qui sotto).";return;}
+  const email=$("#gEmail").value.trim(),pw=$("#gPass").value;
+  if(!email||!pw){$("#gStatus").textContent="Inserisci email e password.";return;}
+  $("#gStatus").textContent="Accesso in corso…";
+  const r=await SB.auth.signInWithPassword({email,password:pw});
+  if(r.error){$("#gStatus").textContent="Accesso fallito: "+r.error.message;return;}
+  await refreshAuth(); showAuthGate(false); showTab("spese"); toast("Accesso eseguito ✓"); syncNow(true);
+}
+async function gateRegister(){
+  if(!SB){$("#gStatus").textContent="Configura prima la sincronizzazione (pulsante qui sotto).";return;}
+  const email=$("#gEmail").value.trim(),pw=$("#gPass").value;
+  if(!email||!pw){$("#gStatus").textContent="Inserisci email e una password (min. 6 caratteri).";return;}
+  $("#gStatus").textContent="Registrazione in corso…";
+  const su=await SB.auth.signUp({email,password:pw});
+  if(su.error){$("#gStatus").textContent="Errore: "+su.error.message;return;}
+  const r=await SB.auth.signInWithPassword({email,password:pw});
+  if(r.error){$("#gStatus").textContent="Account creato. Se il progetto richiede la conferma via email, confermala e poi premi Accedi.";return;}
+  await refreshAuth(); showAuthGate(false); showTab("spese"); toast("Account creato ✓"); syncNow(true);
+}
+async function authLogout(){try{if(SB)await SB.auth.signOut();}catch(_){}sbUser=null;updateAuthUI();showAuthGate(true);}
 function normalizeRow(s){return {id:s.id,data:s.data,tipo:s.tipo,importo:Number(s.importo)||0,cliente:s.cliente||"",comune:s.comune||"",persone:s.persone||1,carta:s.carta||"az",az:Number(s.az)||0,note:s.note||"",foto:s.foto||null,created:s.created||Date.now(),updated:s.updated||Date.now(),deleted:!!s.deleted};}
 async function pushSpesa(s){
   if(!SB||!sbUser)return;
@@ -987,9 +1024,16 @@ $("#btnSalvaSpesa").onclick=salvaSpesa;
 $("#btnElimina").onclick=deleteSpesa;
 $("#btnSaveCfg").onclick=saveCfg;
 $("#btnSaveSb").onclick=async()=>{CFG={...CFG,sbUrl:$("#cfgSbUrl").value.trim(),sbKey:$("#cfgSbKey").value.trim()};await dbPut("cfg",{k:"main",val:CFG});initSupabase();await refreshAuth();toast("Connessione salvata");};
-$("#btnLogin").onclick=authLogin;
-$("#btnLogout").onclick=authLogout;
 $("#btnSyncNow").onclick=()=>syncNow(false);
+// header + schermata accesso
+$("#hdrSettings").onclick=()=>{showAuthGate(false);showTab("imp");};
+$("#hdrAuth").onclick=()=>{ if(sbUser)authLogout(); else showAuthGate(true); };
+$("#btnImpBack").onclick=()=>{ if(sbUser||$("#authGate").classList.contains("hidden"))showTab("spese"); else showAuthGate(true); };
+$("#gLogin").onclick=gateLogin;
+$("#gRegister").onclick=gateRegister;
+$("#gConfig").onclick=()=>{showAuthGate(false);showTab("imp");};
+$("#gOffline").onclick=()=>{showAuthGate(false);showTab("spese");};
+$("#gPass").addEventListener("keydown",e=>{if(e.key==="Enter")gateLogin();});
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)syncNow(true);});
 $("#btnExport").onclick=exportBackup;
 $("#btnClear").onclick=clearPeriodo;
@@ -1004,7 +1048,9 @@ $("#btnMail").onclick=preparaMail;
   try{ if(navigator.storage&&navigator.storage.persist){ await navigator.storage.persist(); } }catch(_){}
   try{
     await openDB();await loadCfg();await loadSpese();showTab("spese");
-    initSupabase();await refreshAuth();syncNow(true); // sincronizza all'avvio se configurato
+    initSupabase();await refreshAuth();
+    if(sbUser){ showAuthGate(false); syncNow(true); }   // già loggato → entra
+    else { showAuthGate(true); }                         // altrimenti → schermata accesso
   }catch(e){
     showTab("spese");
     toast("Attenzione: memoria non disponibile ("+(e&&e.message?e.message:e)+")");
