@@ -191,7 +191,7 @@
     </div>
     <div class="card">
       <h2>Informazioni</h2>
-      <p class="small muted">Nota Spese Bluenext · app personale. L'OCR legge data e importo dallo scontrino: controlla sempre i valori prima di salvare. La prima scansione richiede connessione internet per caricare il motore OCR.</p>
+      <p class="small muted">Xpense · gestione rimborsi trasferta. L'OCR legge data e importo dallo scontrino: controlla sempre i valori prima di salvare. La prima scansione richiede connessione internet per caricare il motore OCR.</p>
     </div>
   </section>
 </main>
@@ -300,7 +300,7 @@
 })();
 
 /* ============ Config ============ */
-const DEFAULT_CFG={dip:"Degli Esposti Giancarlo",cf:"DGLGCR91C13L219O",res:"Via Val Della Torre 52/A, San Gillio 10040 Torino (TO)",cliente:"Bluenext",email:"speseetrasferte@bluenext.it",capP:15,capC:25,sbUrl:"",sbKey:""};
+const DEFAULT_CFG={dip:"",cf:"",res:"",cliente:"Bluenext",email:"speseetrasferte@bluenext.it",capP:15,capC:25,sbUrl:"",sbKey:""};
 let CFG={...DEFAULT_CFG};
 const MESI=["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
 const GIORNI=["DOM","lun","mar","mer","gio","ven","SAB"];
@@ -886,13 +886,13 @@ async function loadCfg(){
   $("#cfgDip").value=CFG.dip;$("#cfgCF").value=CFG.cf||"";$("#cfgRes").value=CFG.res;$("#cfgCliente").value=CFG.cliente;
   $("#cfgEmail").value=CFG.email;$("#cfgCapP").value=CFG.capP;$("#cfgCapC").value=CFG.capC;
   $("#cfgSbUrl").value=CFG.sbUrl||"";$("#cfgSbKey").value=CFG.sbKey||"";
-  $("#hdrSub").textContent="Bluenext · "+CFG.dip;
+  $("#hdrSub").textContent="Bluenext · "+(CFG.dip||"rimborsi trasferta");
 }
 async function saveCfg(){
   CFG={...CFG,dip:$("#cfgDip").value.trim(),cf:$("#cfgCF").value.trim(),res:$("#cfgRes").value.trim(),cliente:$("#cfgCliente").value.trim(),
     email:$("#cfgEmail").value.trim(),capP:parseFloat($("#cfgCapP").value)||15,capC:parseFloat($("#cfgCapC").value)||25};
-  await dbPut("cfg",{k:"main",val:CFG});$("#hdrSub").textContent="Bluenext · "+CFG.dip;
-  renderAll();toast("Impostazioni salvate ✓");
+  await dbPut("cfg",{k:"main",val:CFG});$("#hdrSub").textContent="Bluenext · "+(CFG.dip||"rimborsi trasferta");
+  renderAll();saveProfileCloud();toast("Impostazioni salvate ✓");
 }
 function exportBackup(){
   const blob=new Blob([JSON.stringify({cfg:CFG,spese:SPESE},null,2)],{type:"application/json"});
@@ -944,7 +944,7 @@ async function gateLogin(){
   $("#gStatus").textContent="Accesso in corso…";
   const r=await SB.auth.signInWithPassword({email,password:pw});
   if(r.error){$("#gStatus").textContent="Accesso fallito: "+r.error.message;return;}
-  await refreshAuth(); showAuthGate(false); showTab("spese"); toast("Accesso eseguito ✓"); syncNow(true);
+  await refreshAuth(); toast("Accesso eseguito ✓"); await enterApp();
 }
 async function gateRegister(){
   if(!SB){$("#gStatus").textContent="Configura prima la sincronizzazione (pulsante qui sotto).";return;}
@@ -955,9 +955,34 @@ async function gateRegister(){
   if(su.error){$("#gStatus").textContent="Errore: "+su.error.message;return;}
   const r=await SB.auth.signInWithPassword({email,password:pw});
   if(r.error){$("#gStatus").textContent="Account creato. Se il progetto richiede la conferma via email, confermala e poi premi Accedi.";return;}
-  await refreshAuth(); showAuthGate(false); showTab("spese"); toast("Account creato ✓"); syncNow(true);
+  await refreshAuth(); toast("Account creato ✓"); await enterApp();
 }
-async function authLogout(){try{if(SB)await SB.auth.signOut();}catch(_){}sbUser=null;updateAuthUI();showAuthGate(true);}
+async function authLogout(){try{if(SB)await SB.auth.signOut();}catch(_){}sbUser=null;updateAuthUI();route();}
+function isConfigured(){return !!(CFG.sbUrl&&CFG.sbKey);}
+function profileCompleto(){return !!(CFG.dip&&CFG.dip.trim());}
+function openSettings(){ showAuthGate(false); showTab("imp"); $("#btnImpBack").classList.toggle("hidden", !isConfigured()); }
+// salva il profilo (dati anagrafici) anche nel cloud, così segue l'utente su tutti i dispositivi
+async function saveProfileCloud(){
+  if(!SB||!sbUser)return;
+  try{ await SB.auth.updateUser({data:{profile:{dip:CFG.dip,cf:CFG.cf,res:CFG.res,cliente:CFG.cliente,email:CFG.email,capP:CFG.capP,capC:CFG.capC}}}); }catch(_){}
+}
+async function loadProfileCloud(){
+  if(!sbUser)return;
+  const p=sbUser.user_metadata&&sbUser.user_metadata.profile;
+  if(p && !profileCompleto()){ CFG={...CFG,...p}; await dbPut("cfg",{k:"main",val:CFG}); await loadCfg(); }
+}
+async function enterApp(){
+  showAuthGate(false);
+  await loadProfileCloud();
+  if(!profileCompleto()){ openSettings(); toast("Completa i tuoi dati anagrafici, poi salva."); }
+  else { showTab("spese"); }
+  syncNow(true);
+}
+async function route(){
+  if(!isConfigured()){ openSettings(); }        // 1° avvio senza parametri DB → inserimento dati
+  else if(!sbUser){ showAuthGate(true); }        // configurato ma non loggato → login
+  else { await enterApp(); }                     // loggato → app
+}
 function normalizeRow(s){return {id:s.id,data:s.data,tipo:s.tipo,importo:Number(s.importo)||0,cliente:s.cliente||"",comune:s.comune||"",persone:s.persone||1,carta:s.carta||"az",az:Number(s.az)||0,note:s.note||"",foto:s.foto||null,created:s.created||Date.now(),updated:s.updated||Date.now(),deleted:!!s.deleted};}
 async function pushSpesa(s){
   if(!SB||!sbUser)return;
@@ -1023,15 +1048,15 @@ $("#fPersone").oninput=updateCap;
 $("#btnSalvaSpesa").onclick=salvaSpesa;
 $("#btnElimina").onclick=deleteSpesa;
 $("#btnSaveCfg").onclick=saveCfg;
-$("#btnSaveSb").onclick=async()=>{CFG={...CFG,sbUrl:$("#cfgSbUrl").value.trim(),sbKey:$("#cfgSbKey").value.trim()};await dbPut("cfg",{k:"main",val:CFG});initSupabase();await refreshAuth();toast("Connessione salvata");};
+$("#btnSaveSb").onclick=async()=>{CFG={...CFG,sbUrl:$("#cfgSbUrl").value.trim(),sbKey:$("#cfgSbKey").value.trim()};await dbPut("cfg",{k:"main",val:CFG});initSupabase();await refreshAuth();toast("Connessione salvata");route();};
 $("#btnSyncNow").onclick=()=>syncNow(false);
 // header + schermata accesso
-$("#hdrSettings").onclick=()=>{showAuthGate(false);showTab("imp");};
+$("#hdrSettings").onclick=openSettings;
 $("#hdrAuth").onclick=()=>{ if(sbUser)authLogout(); else showAuthGate(true); };
-$("#btnImpBack").onclick=()=>{ if(sbUser||$("#authGate").classList.contains("hidden"))showTab("spese"); else showAuthGate(true); };
+$("#btnImpBack").onclick=route;
 $("#gLogin").onclick=gateLogin;
 $("#gRegister").onclick=gateRegister;
-$("#gConfig").onclick=()=>{showAuthGate(false);showTab("imp");};
+$("#gConfig").onclick=openSettings;
 $("#gOffline").onclick=()=>{showAuthGate(false);showTab("spese");};
 $("#gPass").addEventListener("keydown",e=>{if(e.key==="Enter")gateLogin();});
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)syncNow(true);});
@@ -1047,10 +1072,9 @@ $("#btnMail").onclick=preparaMail;
   // chiedi al browser di NON cancellare i dati (storage persistente)
   try{ if(navigator.storage&&navigator.storage.persist){ await navigator.storage.persist(); } }catch(_){}
   try{
-    await openDB();await loadCfg();await loadSpese();showTab("spese");
+    await openDB();await loadCfg();await loadSpese();
     initSupabase();await refreshAuth();
-    if(sbUser){ showAuthGate(false); syncNow(true); }   // già loggato → entra
-    else { showAuthGate(true); }                         // altrimenti → schermata accesso
+    await route();   // connessione mancante → inserimento dati; configurato → login; loggato → app
   }catch(e){
     showTab("spese");
     toast("Attenzione: memoria non disponibile ("+(e&&e.message?e.message:e)+")");
