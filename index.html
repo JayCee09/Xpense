@@ -275,6 +275,7 @@ async function ensureWorker(onProgress){
   ocrInit=(async()=>{
     if(typeof Tesseract==="undefined") throw new Error("motore non caricato (connessione assente?)");
     ocrWorker=await Tesseract.createWorker("ita",1,{logger:m=>{if(onProgress)onProgress(m);}});
+    try{await ocrWorker.setParameters({tessedit_pageseg_mode:"6",preserve_interword_spaces:"1"});}catch(_){}
     ocrReady=true; return ocrWorker;
   })().catch(e=>{ocrInit=null;throw e;});
   return ocrInit;
@@ -289,7 +290,8 @@ async function runOCR(dataURL){
       if(m.status==="recognizing text"){tx.textContent="Lettura scontrino… "+Math.round((m.progress||0)*100)+"%";}
       else if(m.status&&/load|initial|download|fetch/i.test(m.status)){tx.textContent="Scarico il lettore OCR… (solo la prima volta, attendi)";}
     });
-    const {data}=await w.recognize(dataURL);
+    const proc=await preprocessForOCR(dataURL);
+    const {data}=await w.recognize(proc);
     const txt=(data&&data.text)||"";
     const imp=parseImporto(txt);
     const dt=parseData(txt);
@@ -309,50 +311,92 @@ function autoTipo(imp){
   if(imp<=CFG.capP+0.001){setTipo("pranzo");}else{setTipo("cena");}
 }
 function parseImporto(txt){
-  const lines=txt.split(/\n/);
-  let best=null,bestScore=-1;
+  const lines=txt.split(/\n/).map(l=>l.trim()).filter(Boolean);
   const numRe=/(\d{1,4})[.,](\d{2})(?!\d)/g;
+  // righe da ignorare del tutto: IVA, imponibile, imposta, aliquota, resto, subtotale, dati fiscali
+  const EXCL=/IMPOST|IMPONIB|ALIQU|\bIVA\b|RESTO|SUBTOT|SCONTR|C\.?\s?F\b|P\.?\s?IVA|CODICE|NUMERO|PROGR|TEL\b|CAP\b/;
+  // parole che indicano il totale da pagare
+  const STRONG=/TOTAL|IMPORTO|DA\s*PAGARE|PAGATO|SALDO/;
+  const cands=[];
   lines.forEach(line=>{
-    const L=line.toUpperCase();
+    const U=line.toUpperCase();
+    if(EXCL.test(U))return;
+    const nums=[];let m;
+    while((m=numRe.exec(line))){const v=parseFloat(m[1]+"."+m[2]);if(v>0&&v<=1000)nums.push(v);}
+    if(!nums.length)return;
     let score=0;
-    if(/TOTALE\s*(COMPLESSIVO|EURO|€|DA PAGARE)?/.test(L))score+=5;
-    if(/\bTOTALE\b/.test(L))score+=3;
-    if(/IMPORTO|PAGAT|CONTANT|CARTA|BANCOMAT|EURO|€/.test(L))score+=1;
-    if(/SUBTOT|IVA|RESTO|N\.|SCONTR/.test(L))score-=3;
-    let m;while((m=numRe.exec(line))){
-      const v=parseFloat(m[1]+"."+m[2]);
-      if(v<=0||v>500)continue;
-      const s=score+ v/1000; // tie-break su valore
-      if(s>bestScore){bestScore=s;best=v;}
-    }
+    if(STRONG.test(U))score+=6;
+    if(/EURO|€/.test(U))score+=1;
+    nums.forEach(v=>cands.push({v,score}));
   });
-  return best;
+  if(!cands.length)return null;
+  const strong=cands.filter(c=>c.score>=6);
+  const pool=strong.length?strong:cands;      // se c'è una riga "totale" usa quella, altrimenti il massimo
+  pool.sort((a,b)=>(b.score-a.score)||(b.v-a.v));
+  return pool[0].v;
 }
 function parseData(txt){
-  const re=/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/g;let m,found=null;
+  // tollera errori OCR comuni: O/o->0, l/I->1, B->8 dentro token di tipo data
+  const fix=s=>s.replace(/[Oo]/g,"0").replace(/[lI]/g,"1").replace(/B/g,"8");
+  const re=/([0-9OoIlB]{1,2})[\/\-.]([0-9OoIlB]{1,2})[\/\-.]([0-9OoIlB]{2,4})/g;
+  let m;const oggi=new Date();
+  const found=[];
   while((m=re.exec(txt))){
-    let d=+m[1],mo=+m[2],y=+m[3];
+    let d=+fix(m[1]),mo=+fix(m[2]),y=+fix(m[3]);
     if(y<100)y+=2000;
-    if(d>=1&&d<=31&&mo>=1&&mo<=12&&y>=2020&&y<=2035){found={d,mo,y};break;}
+    if(d>=1&&d<=31&&mo>=1&&mo<=12&&y>=2020&&y<=2035)found.push({d,mo,y});
   }
-  if(!found)return null;
-  return `${found.y}-${String(found.mo).padStart(2,"0")}-${String(found.d).padStart(2,"0")}`;
+  if(!found.length)return null;
+  // preferisci una data non futura (lo scontrino è del passato o di oggi)
+  const valid=found.filter(f=>new Date(f.y,f.mo-1,f.d)<=new Date(oggi.getFullYear(),oggi.getMonth(),oggi.getDate()+1));
+  const pick=(valid.length?valid:found)[0];
+  return `${pick.y}-${String(pick.mo).padStart(2,"0")}-${String(pick.d).padStart(2,"0")}`;
 }
 
 /* ============ Foto: ridimensiona e comprimi ============ */
-function fileToDataURL(file){
+function fileToDataURL(file,max,q){
+  max=max||1500;q=q||0.72;
   return new Promise((res,rej)=>{
     const img=new Image();const url=URL.createObjectURL(file);
     img.onload=()=>{
-      const max=1500;let{width:w,height:h}=img;
+      let{width:w,height:h}=img;
       if(w>max||h>max){const r=Math.min(max/w,max/h);w=Math.round(w*r);h=Math.round(h*r);}
       const cv=document.createElement("canvas");cv.width=w;cv.height=h;
       cv.getContext("2d").drawImage(img,0,0,w,h);
       URL.revokeObjectURL(url);
-      try{res(cv.toDataURL("image/jpeg",0.72));}catch(e){rej(e);}
+      try{res(cv.toDataURL("image/jpeg",q));}catch(e){rej(e);}
     };
     img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error("decode"));};
     img.src=url;
+  });
+}
+/* Preelaborazione per OCR: scala di grigi + stretch contrasto (migliora scontrini termici) */
+function preprocessForOCR(dataURL){
+  return new Promise(res=>{
+    const img=new Image();
+    img.onload=()=>{
+      let{width:w,height:h}=img;
+      const target=2000,scale=Math.min(2.5,Math.max(1,target/Math.max(w,h)));
+      w=Math.round(w*scale);h=Math.round(h*scale);
+      const cv=document.createElement("canvas");cv.width=w;cv.height=h;
+      const ctx=cv.getContext("2d");ctx.drawImage(img,0,0,w,h);
+      try{
+        const id=ctx.getImageData(0,0,w,h),d=id.data,n=w*h,gray=new Uint8Array(n);
+        let min=255,max=0;
+        for(let i=0,p=0;i<d.length;i+=4,p++){const g=(d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114)|0;gray[p]=g;if(g<min)min=g;if(g>max)max=g;}
+        const range=Math.max(1,max-min);
+        for(let i=0,p=0;i<d.length;i+=4,p++){
+          let g=(gray[p]-min)*255/range;           // stretch dinamico
+          g=g<120?g*0.7:120+(g-120)*1.35;           // aumenta contrasto
+          if(g<0)g=0;if(g>255)g=255;
+          d[i]=d[i+1]=d[i+2]=g;
+        }
+        ctx.putImageData(id,0,0);
+        res(cv.toDataURL("image/png"));
+      }catch(e){res(dataURL);}
+    };
+    img.onerror=()=>res(dataURL);
+    img.src=dataURL;
   });
 }
 
@@ -634,13 +678,15 @@ $("#btnCambiaFoto").onclick=()=>$("#fileCam").click();
 $("#fileCam").onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
   try{
-    pendingPhoto=await fileToDataURL(f);
+    const stored=await fileToDataURL(f,1500,0.72);      // versione compressa per archivio/PDF
     if($("#sheetOverlay").classList.contains("hidden"))openSheet(null);
-    const p=$("#prev");p.src=pendingPhoto;p.classList.remove("hidden");
-    runOCR(pendingPhoto);
+    pendingPhoto=stored;                                 // impostata DOPO openSheet
+    const p=$("#prev");p.src=stored;p.classList.remove("hidden");
+    const ocrSrc=await fileToDataURL(f,2400,0.92);        // versione ad alta risoluzione per OCR
+    runOCR(ocrSrc);
   }catch(err){
-    toast("Formato foto non leggibile — riprova o inserisci a mano");
     if($("#sheetOverlay").classList.contains("hidden"))openSheet(null);
+    toast("Formato foto non leggibile — riprova o inserisci a mano");
   }
 };
 $("#sheetClose").onclick=closeSheet;
