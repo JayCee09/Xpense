@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Nota Spese">
-<title>Nota Spese Bluenext</title>
+<title>Xpense</title>
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect width='180' height='180' rx='38' fill='%230b5cab'/%3E%3Ctext x='90' y='120' font-size='96' text-anchor='middle' fill='white' font-family='Arial'%3E%E2%82%AC%3C/text%3E%3C/svg%3E">
 <style>
   :root{
@@ -82,7 +82,7 @@
 <body>
 <header>
   <div style="flex:1">
-    <div class="logo">Nota Spese</div>
+    <div class="logo">Xpense</div>
     <div class="sub" id="hdrSub">Bluenext · rimborsi trasferta</div>
   </div>
 </header>
@@ -138,6 +138,28 @@
       </div>
       <div style="height:12px"></div>
       <button class="btn" id="btnSaveCfg">Salva impostazioni</button>
+    </div>
+    <div class="card">
+      <h2>Sincronizzazione multi-dispositivo</h2>
+      <p class="small muted">Allinea spese e foto tra telefono e PC tramite Supabase (gratis). Configurazione una tantum: segui la guida allegata.</p>
+      <label>Supabase Project URL</label>
+      <input id="cfgSbUrl" placeholder="https://xxxxx.supabase.co" autocapitalize="off" autocorrect="off"/>
+      <label>Supabase anon key (public)</label>
+      <input id="cfgSbKey" placeholder="eyJhbGciOi..." autocapitalize="off" autocorrect="off"/>
+      <div style="height:8px"></div>
+      <button class="btn" id="btnSaveSb">Salva connessione</button>
+      <div style="height:14px"></div>
+      <div class="small muted" id="authState">Sync non configurata</div>
+      <label>Email account sync</label>
+      <input id="sbEmail" type="email" autocomplete="username" autocapitalize="off" autocorrect="off"/>
+      <label>Password</label>
+      <input id="sbPass" type="password" autocomplete="current-password"/>
+      <div style="height:8px"></div>
+      <button class="btn" id="btnLogin">Accedi / Registrati</button>
+      <button class="btn ghost hidden" id="btnLogout">Esci</button>
+      <div style="height:10px"></div>
+      <button class="btn secondary" id="btnSyncNow">↻ Sincronizza ora</button>
+      <div class="infoline" id="syncStatus"></div>
     </div>
     <div class="card">
       <h2>Dati e backup</h2>
@@ -217,6 +239,7 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3/dist/jspdf.plugin.autotable.min.js"></script>
@@ -230,7 +253,7 @@
 })();
 
 /* ============ Config ============ */
-const DEFAULT_CFG={dip:"Degli Esposti Giancarlo",cf:"DGLGCR91C13L219O",res:"Via Val Della Torre 52/A, San Gillio 10040 Torino (TO)",cliente:"Bluenext",email:"speseetrasferte@bluenext.it",capP:15,capC:25};
+const DEFAULT_CFG={dip:"Degli Esposti Giancarlo",cf:"DGLGCR91C13L219O",res:"Via Val Della Torre 52/A, San Gillio 10040 Torino (TO)",cliente:"Bluenext",email:"speseetrasferte@bluenext.it",capP:15,capC:25,sbUrl:"",sbKey:""};
 let CFG={...DEFAULT_CFG};
 const MESI=["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
 const GIORNI=["DOM","lun","mar","mer","gio","ven","SAB"];
@@ -474,7 +497,8 @@ async function salvaSpesa(){
     persone:parseInt($("#fPersone").value)||1,carta:$("#fCarta").value,
     az:$("#fCarta").value==="misto"?(parseFloat($("#fAz").value)||0):0,
     note:$("#fNote").value.trim(),foto:pendingPhoto||null,
-    created:editing?editing.created:Date.now()
+    created:editing?editing.created:Date.now(),
+    updated:Date.now(), deleted:false
   };
   try{
     await dbPut("spese",s);
@@ -483,10 +507,11 @@ async function salvaSpesa(){
     return;
   }
   await loadSpese();closeSheet();toast(editing?"Scontrino aggiornato":"Scontrino salvato ✓");
+  pushSpesa(s); // sincronizza in background (se configurato)
 }
 
 /* ============ Rendering liste ============ */
-async function loadSpese(){SPESE=(await dbGetAll("spese")).sort((a,b)=>a.data.localeCompare(b.data)||a.created-b.created);renderAll();}
+async function loadSpese(){SPESE=(await dbGetAll("spese")).filter(s=>!s.deleted).sort((a,b)=>a.data.localeCompare(b.data)||a.created-b.created);renderAll();}
 function mesiPresenti(){return[...new Set(SPESE.map(s=>meseKey(s.data)))].sort();}
 function renderAll(){renderFiltro();renderLista();renderMeseChecks();}
 function renderFiltro(){
@@ -735,10 +760,11 @@ async function loadCfg(){
   const c=await dbGet("cfg","main");if(c)CFG={...DEFAULT_CFG,...c.val};
   $("#cfgDip").value=CFG.dip;$("#cfgCF").value=CFG.cf||"";$("#cfgRes").value=CFG.res;$("#cfgCliente").value=CFG.cliente;
   $("#cfgEmail").value=CFG.email;$("#cfgCapP").value=CFG.capP;$("#cfgCapC").value=CFG.capC;
+  $("#cfgSbUrl").value=CFG.sbUrl||"";$("#cfgSbKey").value=CFG.sbKey||"";
   $("#hdrSub").textContent="Bluenext · "+CFG.dip;
 }
 async function saveCfg(){
-  CFG={dip:$("#cfgDip").value.trim(),cf:$("#cfgCF").value.trim(),res:$("#cfgRes").value.trim(),cliente:$("#cfgCliente").value.trim(),
+  CFG={...CFG,dip:$("#cfgDip").value.trim(),cf:$("#cfgCF").value.trim(),res:$("#cfgRes").value.trim(),cliente:$("#cfgCliente").value.trim(),
     email:$("#cfgEmail").value.trim(),capP:parseFloat($("#cfgCapP").value)||15,capC:parseFloat($("#cfgCapC").value)||25};
   await dbPut("cfg",{k:"main",val:CFG});$("#hdrSub").textContent="Bluenext · "+CFG.dip;
   renderAll();toast("Impostazioni salvate ✓");
@@ -751,8 +777,75 @@ async function clearPeriodo(){
   const l=speseSelezionate();
   if(!l.length){toast("Nessun mese selezionato");return;}
   if(!confirm(`Eliminare ${l.length} scontrini del periodo selezionato? (fai prima un backup)`))return;
-  for(const s of l)await dbDel("spese",s.id);
+  for(const s of l){const t={...s,deleted:true,updated:Date.now()};await dbPut("spese",t);pushSpesa(t);} // soft-delete + sync
   selMesi.clear();await loadSpese();toast("Spese eliminate");
+}
+
+/* ============ Sincronizzazione Supabase ============ */
+let SB=null, sbUser=null;
+function sbLog(m){const el=$("#syncStatus");if(el)el.textContent=m;}
+function initSupabase(){
+  SB=null;
+  try{
+    if(CFG.sbUrl&&CFG.sbKey&&window.supabase&&window.supabase.createClient){
+      SB=window.supabase.createClient(CFG.sbUrl,CFG.sbKey,{auth:{persistSession:true,autoRefreshToken:true}});
+      return true;
+    }
+  }catch(e){sbLog("Config sync non valida: "+(e.message||e));}
+  return false;
+}
+async function refreshAuth(){
+  const st=$("#authState");
+  if(!SB){if(st)st.textContent="Sync non configurata";toggleAuthBtns(false);return;}
+  try{const {data}=await SB.auth.getUser();sbUser=(data&&data.user)||null;}catch(_){sbUser=null;}
+  if(st)st.textContent=sbUser?("Connesso: "+(sbUser.email||sbUser.id)):"Non connesso";
+  toggleAuthBtns(!!sbUser);
+}
+function toggleAuthBtns(logged){
+  const bi=$("#btnLogin"),bo=$("#btnLogout");
+  if(bi)bi.classList.toggle("hidden",logged);
+  if(bo)bo.classList.toggle("hidden",!logged);
+}
+async function authLogin(){
+  if(!SB){toast("Prima salva URL e chiave Supabase");return;}
+  const email=$("#sbEmail").value.trim(),pw=$("#sbPass").value;
+  if(!email||!pw){toast("Inserisci email e password");return;}
+  sbLog("Accesso in corso…");
+  let r=await SB.auth.signInWithPassword({email,password:pw});
+  if(r.error){
+    const su=await SB.auth.signUp({email,password:pw});
+    if(su.error){sbLog("Errore: "+su.error.message);toast("Accesso fallito");return;}
+    r=await SB.auth.signInWithPassword({email,password:pw});
+    if(r.error){sbLog("Account creato: se il progetto richiede conferma via email, confermala e rifai 'Accedi'.");return;}
+  }
+  await refreshAuth();sbLog("Connesso ✓");toast("Connesso");syncNow(true);
+}
+async function authLogout(){try{if(SB)await SB.auth.signOut();}catch(_){}sbUser=null;await refreshAuth();sbLog("Disconnesso");}
+function normalizeRow(s){return {id:s.id,data:s.data,tipo:s.tipo,importo:Number(s.importo)||0,cliente:s.cliente||"",comune:s.comune||"",persone:s.persone||1,carta:s.carta||"az",az:Number(s.az)||0,note:s.note||"",foto:s.foto||null,created:s.created||Date.now(),updated:s.updated||Date.now(),deleted:!!s.deleted};}
+async function pushSpesa(s){
+  if(!SB||!sbUser)return;
+  try{const {error}=await SB.from("spese").upsert({...s,user_id:sbUser.id});if(error)throw error;sbLog("Sincronizzato "+new Date().toLocaleTimeString("it-IT"));}
+  catch(e){sbLog("Errore invio: "+(e.message||e));}
+}
+let syncing=false;
+async function syncNow(silent){
+  if(!db)return;
+  if(!SB){if(!silent)toast("Sync non configurata (vedi Impostazioni)");return;}
+  if(syncing)return; syncing=true;
+  try{
+    await refreshAuth();
+    if(!sbUser){if(!silent)toast("Fai login per sincronizzare");return;}
+    sbLog("Sincronizzazione…");
+    const {data:server,error}=await SB.from("spese").select("*");
+    if(error)throw error;
+    const local=await dbGetAll("spese");
+    const lmap=new Map(local.map(s=>[s.id,s])), smap=new Map((server||[]).map(s=>[s.id,s]));
+    for(const s of (server||[])){const l=lmap.get(s.id);if(!l||(s.updated||0)>(l.updated||0))await dbPut("spese",normalizeRow(s));}
+    for(const l of local){const s=smap.get(l.id);if(!s||(l.updated||0)>(s.updated||0)){const {error:e2}=await SB.from("spese").upsert({...l,user_id:sbUser.id});if(e2)throw e2;}}
+    await loadSpese();
+    sbLog("Aggiornato "+new Date().toLocaleTimeString("it-IT"));
+  }catch(e){sbLog("Errore sync: "+(e.message||e));if(!silent)toast("Errore sync: "+(e.message||e));}
+  finally{syncing=false;}
 }
 
 /* ============ Navigazione tab ============ */
@@ -790,6 +883,11 @@ $("#fImporto").oninput=updateCap;
 $("#fPersone").oninput=updateCap;
 $("#btnSalvaSpesa").onclick=salvaSpesa;
 $("#btnSaveCfg").onclick=saveCfg;
+$("#btnSaveSb").onclick=async()=>{CFG={...CFG,sbUrl:$("#cfgSbUrl").value.trim(),sbKey:$("#cfgSbKey").value.trim()};await dbPut("cfg",{k:"main",val:CFG});initSupabase();await refreshAuth();toast("Connessione salvata");};
+$("#btnLogin").onclick=authLogin;
+$("#btnLogout").onclick=authLogout;
+$("#btnSyncNow").onclick=()=>syncNow(false);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)syncNow(true);});
 $("#btnExport").onclick=exportBackup;
 $("#btnClear").onclick=clearPeriodo;
 $("#btnGiust").onclick=()=>{const r=genGiustificativi();if(r){r.doc.save(r.fn);toast("PDF giustificativi generato");}};
@@ -802,6 +900,7 @@ $("#btnMail").onclick=preparaMail;
   try{ if(navigator.storage&&navigator.storage.persist){ await navigator.storage.persist(); } }catch(_){}
   try{
     await openDB();await loadCfg();await loadSpese();showTab("spese");
+    initSupabase();await refreshAuth();syncNow(true); // sincronizza all'avvio se configurato
   }catch(e){
     showTab("spese");
     toast("Attenzione: memoria non disponibile ("+(e&&e.message?e.message:e)+")");
