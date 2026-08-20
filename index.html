@@ -650,8 +650,9 @@ function renderMeseChecks(){
   // mostra sempre il mese corrente, anche senza spese salvate
   const mesi=[...new Set([...mesiPresenti(),meseCorrente()])].sort();
   if(!selMesi.size){
-    if(mesiPresenti().length)mesiPresenti().forEach(m=>selMesi.add(m)); // preseleziona i mesi con spese
-    else selMesi.add(meseCorrente());                                    // altrimenti il mese corrente
+    const mp=mesiPresenti();                        // ordinati crescente (YYYY-MM): l'ultimo è il più recente
+    if(mp.length)selMesi.add(mp[mp.length-1]);      // spunta solo il mese più recente in archivio
+    else selMesi.add(meseCorrente());               // se non c'è nulla, il mese corrente
   }
   box.innerHTML=mesi.map(m=>`<label class="chk"><input type="checkbox" value="${m}" ${selMesi.has(m)?"checked":""}/> <span>${meseLabel(m)} · ${SPESE.filter(s=>meseKey(s.data)===m).length} scontrini</span></label>`).join("");
   $$("#meseChecks input").forEach(c=>c.onchange=()=>{c.checked?selMesi.add(c.value):selMesi.delete(c.value);renderRiepilogo();});
