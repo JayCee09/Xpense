@@ -1,0 +1,29 @@
+name: Supabase keep-alive
+
+# Tiene attivo il progetto Supabase (piano gratuito) facendo una piccola
+# richiesta al database due volte a settimana, così non va mai in pausa
+# per inattività (il limite è 7 giorni senza richieste).
+
+on:
+  schedule:
+    # Lunedì e giovedì alle 06:00 UTC → intervallo massimo ~3-4 giorni, sotto i 7
+    - cron: '0 6 * * 1,4'
+  workflow_dispatch:   # permette anche l'avvio manuale dalla tab "Actions"
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST
+        run: |
+          echo "Ping $(date -u)"
+          code=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://hahymquzaekionsbkmqo.supabase.co/rest/v1/spese?select=id&limit=1" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
+          echo "HTTP $code"
+          # 200 (ok) o 401/403 (RLS) vanno bene lo stesso: la richiesta ha
+          # comunque raggiunto il database e resetta il conteggio di inattività.
+          if [ "$code" -ge 500 ]; then echo "Server error"; exit 1; fi
+    env:
+      SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhhaHltcXV6YWVraW9uc2JrbXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcxMzUzNDUsImV4cCI6MjEwMjcxMTM0NX0.T28KNjqSVmIoJomfrN1aPl-y_aQ2aP8PpLEgkd2wZLM
