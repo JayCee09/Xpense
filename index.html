@@ -207,7 +207,7 @@
 <div class="authwrap hidden" id="authGate">
   <div class="authcard">
     <div class="authlogo"><i class="fa-solid fa-bolt"></i> XPENSE</div>
-    <p class="small muted" style="text-align:center;margin:6px 0 16px">Accedi o registrati per sincronizzare le spese su tutti i tuoi dispositivi.</p>
+    <p class="small muted" style="text-align:center;margin:6px 0 16px">Accedi al tuo account per sincronizzare le spese su tutti i dispositivi.</p>
     <label>Email</label>
     <input id="gEmail" type="email" autocomplete="username" autocapitalize="off" autocorrect="off"/>
     <label>Password</label>
@@ -217,11 +217,33 @@
     <div style="height:8px"></div>
     <button class="btn secondary" id="gRegister"><i class="fa-solid fa-user-plus"></i> Registrati</button>
     <div class="infoline" id="gStatus"></div>
-    <div style="height:14px"></div>
-    <button class="btn ghost" id="gConfig"><i class="fa-solid fa-gear"></i> Configura sincronizzazione</button>
-    <div style="height:8px"></div>
-    <button class="btn ghost" id="gOffline">Continua senza accesso (solo questo dispositivo)</button>
-    <div class="infoline" id="gConfigHint"></div>
+  </div>
+</div>
+
+<!-- ===== SCHERMATA REGISTRAZIONE (inserimento dati) ===== -->
+<div class="authwrap hidden" id="authReg">
+  <div class="authcard">
+    <div class="authlogo" style="font-size:22px"><i class="fa-solid fa-user-plus"></i> REGISTRAZIONE</div>
+    <p class="small muted" style="text-align:center;margin:6px 0 14px">Compila i tuoi dati e crea l'account. La registrazione dovrà essere approvata dall'amministratore prima del primo accesso.</p>
+    <h2 style="margin-top:6px">Account</h2>
+    <label>Email</label>
+    <input id="rEmail" type="email" autocomplete="username" autocapitalize="off" autocorrect="off"/>
+    <label>Password (min. 6 caratteri)</label>
+    <input id="rPass" type="password" autocomplete="new-password"/>
+    <label>Conferma password</label>
+    <input id="rPass2" type="password" autocomplete="new-password"/>
+    <h2 style="margin-top:14px">Dati anagrafici</h2>
+    <label>Cognome e Nome</label>
+    <input id="rDip"/>
+    <label>Codice Fiscale</label>
+    <input id="rCf"/>
+    <label>Residenza / domicilio</label>
+    <input id="rRes"/>
+    <div style="height:16px"></div>
+    <button class="btn" id="rSubmit"><i class="fa-solid fa-paper-plane"></i> Invia richiesta di registrazione</button>
+    <div class="infoline" id="rStatus"></div>
+    <div style="height:10px"></div>
+    <button class="btn ghost" id="rBack"><i class="fa-solid fa-arrow-left"></i> Torna al login</button>
   </div>
 </div>
 
@@ -928,34 +950,60 @@ function updateAuthUI(){
     if(sbUser){ btn.title="Esci"; btn.setAttribute("aria-label","Esci"); if(ic)ic.className="fa-solid fa-right-from-bracket"; }
     else { btn.title="Accedi"; btn.setAttribute("aria-label","Accedi"); if(ic)ic.className="fa-solid fa-right-to-bracket"; }
   }
-  const hint=$("#gConfigHint");
-  if(hint)hint.textContent = SB? "" : "Sincronizzazione non ancora configurata: tocca \"Configura sincronizzazione\" e inserisci URL e chiave Supabase.";
 }
 async function refreshAuth(){
   if(!SB){sbUser=null;updateAuthUI();return;}
   try{const {data}=await SB.auth.getUser();sbUser=(data&&data.user)||null;}catch(_){sbUser=null;}
   updateAuthUI();
 }
-function showAuthGate(show){ $("#authGate").classList.toggle("hidden",!show); if(show){$("#gStatus").textContent="";updateAuthUI();} }
+function showAuthGate(show){ $("#authReg").classList.add("hidden"); $("#authGate").classList.toggle("hidden",!show); if(show){$("#gStatus").textContent="";updateAuthUI();} }
+function showLogin(){ $("#authReg").classList.add("hidden"); $("#authGate").classList.remove("hidden"); updateAuthUI(); }
+function showRegister(){ $("#gEmail").value&&($("#rEmail").value=$("#gEmail").value); $("#rStatus").textContent=""; $("#authGate").classList.add("hidden"); $("#authReg").classList.remove("hidden"); }
+// verifica lo stato di approvazione dell'account (se la tabella profiles non esiste, nessun blocco)
+async function checkApproved(){
+  if(!SB||!sbUser)return {enabled:false,approved:true};
+  try{
+    const {data,error}=await SB.from("profiles").select("approved").eq("id",sbUser.id).maybeSingle();
+    if(error){ if(/relation|does not exist|find the table|schema cache/i.test(error.message||"")) return {enabled:false,approved:true}; return {enabled:true,approved:false}; }
+    if(!data) return {enabled:true,approved:false};
+    return {enabled:true,approved:!!data.approved};
+  }catch(e){ return {enabled:false,approved:true}; }
+}
 async function gateLogin(){
-  if(!SB){$("#gStatus").textContent="Configura prima la sincronizzazione (pulsante qui sotto).";return;}
+  if(!SB){$("#gStatus").textContent="Sincronizzazione non configurata (Impostazioni).";return;}
   const email=$("#gEmail").value.trim(),pw=$("#gPass").value;
   if(!email||!pw){$("#gStatus").textContent="Inserisci email e password.";return;}
   $("#gStatus").textContent="Accesso in corso…";
   const r=await SB.auth.signInWithPassword({email,password:pw});
-  if(r.error){$("#gStatus").textContent="Accesso fallito: "+r.error.message;return;}
-  await refreshAuth(); toast("Accesso eseguito ✓"); await enterApp();
+  if(r.error){$("#gStatus").textContent="Utente non registrato o credenziali non valide.";return;}
+  await refreshAuth();
+  const ap=await checkApproved();
+  if(ap.enabled && !ap.approved){ try{await SB.auth.signOut();}catch(_){} sbUser=null; updateAuthUI(); $("#gStatus").textContent="Account in attesa di approvazione dall'amministratore."; return; }
+  toast("Accesso eseguito ✓"); await enterApp();
 }
-async function gateRegister(){
-  if(!SB){$("#gStatus").textContent="Configura prima la sincronizzazione (pulsante qui sotto).";return;}
-  const email=$("#gEmail").value.trim(),pw=$("#gPass").value;
-  if(!email||!pw){$("#gStatus").textContent="Inserisci email e una password (min. 6 caratteri).";return;}
-  $("#gStatus").textContent="Registrazione in corso…";
+async function doRegister(){
+  if(!SB){$("#rStatus").textContent="Sincronizzazione non configurata (Impostazioni).";return;}
+  const email=$("#rEmail").value.trim(), pw=$("#rPass").value, pw2=$("#rPass2").value, dip=$("#rDip").value.trim();
+  if(!email||!pw){$("#rStatus").textContent="Inserisci email e password.";return;}
+  if(pw.length<6){$("#rStatus").textContent="La password deve avere almeno 6 caratteri.";return;}
+  if(pw!==pw2){$("#rStatus").textContent="Le password non coincidono.";return;}
+  if(!dip){$("#rStatus").textContent="Inserisci almeno Cognome e Nome.";return;}
+  $("#rStatus").textContent="Invio richiesta di registrazione…";
   const su=await SB.auth.signUp({email,password:pw});
-  if(su.error){$("#gStatus").textContent="Errore: "+su.error.message;return;}
-  const r=await SB.auth.signInWithPassword({email,password:pw});
-  if(r.error){$("#gStatus").textContent="Account creato. Se il progetto richiede la conferma via email, confermala e poi premi Accedi.";return;}
-  await refreshAuth(); toast("Account creato ✓"); await enterApp();
+  if(su.error){$("#rStatus").textContent="Errore: "+su.error.message;return;}
+  // se possibile accedi per salvare il profilo, poi esci (l'account resta in attesa di approvazione)
+  const si=await SB.auth.signInWithPassword({email,password:pw});
+  if(!si.error){
+    await refreshAuth();
+    CFG={...CFG,dip,cf:$("#rCf").value.trim(),res:$("#rRes").value.trim()};
+    await dbPut("cfg",{k:"main",val:CFG}); await loadCfg();
+    await saveProfileCloud();
+    try{ await SB.from("profiles").upsert({id:sbUser.id,email,approved:false}); }catch(_){}
+    try{ await SB.auth.signOut(); }catch(_){}
+    sbUser=null; updateAuthUI();
+  }
+  showLogin();
+  $("#gStatus").textContent="Richiesta inviata! Potrai accedere dopo l'approvazione dell'amministratore.";
 }
 async function authLogout(){try{if(SB)await SB.auth.signOut();}catch(_){}sbUser=null;updateAuthUI();route();}
 function isConfigured(){return !!(CFG.sbUrl&&CFG.sbKey);}
@@ -1055,10 +1103,11 @@ $("#hdrSettings").onclick=openSettings;
 $("#hdrAuth").onclick=()=>{ if(sbUser)authLogout(); else showAuthGate(true); };
 $("#btnImpBack").onclick=route;
 $("#gLogin").onclick=gateLogin;
-$("#gRegister").onclick=gateRegister;
-$("#gConfig").onclick=openSettings;
-$("#gOffline").onclick=()=>{showAuthGate(false);showTab("spese");};
+$("#gRegister").onclick=showRegister;
+$("#rSubmit").onclick=doRegister;
+$("#rBack").onclick=showLogin;
 $("#gPass").addEventListener("keydown",e=>{if(e.key==="Enter")gateLogin();});
+$("#rPass2").addEventListener("keydown",e=>{if(e.key==="Enter")doRegister();});
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)syncNow(true);});
 $("#btnExport").onclick=exportBackup;
 $("#btnClear").onclick=clearPeriodo;
