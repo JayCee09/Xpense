@@ -640,10 +640,15 @@ function renderLista(){
     <div class="totbox grand"><span>Totale</span><span>€ ${eur(tot)}</span></div>`;
 }
 let selMesi=new Set();
+function meseCorrente(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;}
 function renderMeseChecks(){
-  const box=$("#meseChecks");const mesi=mesiPresenti();
-  if(!mesi.length){box.innerHTML=`<p class="muted small">Nessuna spesa da inviare.</p>`;$("#riepilogoGen").innerHTML="";return;}
-  if(!selMesi.size)mesi.forEach(m=>selMesi.add(m));
+  const box=$("#meseChecks");
+  // mostra sempre il mese corrente, anche senza spese salvate
+  const mesi=[...new Set([...mesiPresenti(),meseCorrente()])].sort();
+  if(!selMesi.size){
+    if(mesiPresenti().length)mesiPresenti().forEach(m=>selMesi.add(m)); // preseleziona i mesi con spese
+    else selMesi.add(meseCorrente());                                    // altrimenti il mese corrente
+  }
   box.innerHTML=mesi.map(m=>`<label class="chk"><input type="checkbox" value="${m}" ${selMesi.has(m)?"checked":""}/> <span>${meseLabel(m)} · ${SPESE.filter(s=>meseKey(s.data)===m).length} scontrini</span></label>`).join("");
   $$("#meseChecks input").forEach(c=>c.onchange=()=>{c.checked?selMesi.add(c.value):selMesi.delete(c.value);renderRiepilogo();});
   renderRiepilogo();
