@@ -351,7 +351,7 @@ let SPESE=[];         // array di spese
 let editing=null;     // spesa in modifica
 let pendingPhoto=null;// dataURL foto in corso
 let currentTipo="pranzo";
-let filtroMeseKey="tutti";
+let filtroMeseKey=null;   // deciso al primo render: mese corrente se disponibile, altrimenti tutti
 
 /* ============ Util ============ */
 const $=s=>document.querySelector(s);
@@ -606,7 +606,11 @@ function mesiPresenti(){return[...new Set(SPESE.map(s=>meseKey(s.data)))].sort()
 function renderAll(){renderFiltro();renderLista();renderMeseChecks();}
 function renderFiltro(){
   const box=$("#filtroMese");const mesi=mesiPresenti();
-  if(mesi.length<=1){box.innerHTML="";filtroMeseKey="tutti";return;}
+  // primo caricamento: seleziona il mese corrente se ha spese, altrimenti "Tutti i mesi"
+  if(filtroMeseKey===null) filtroMeseKey = mesi.includes(meseCorrente()) ? meseCorrente() : "tutti";
+  // se il mese selezionato non ha (più) spese, torna a "Tutti i mesi"
+  if(filtroMeseKey!=="tutti" && !mesi.includes(filtroMeseKey)) filtroMeseKey="tutti";
+  if(mesi.length<=1){box.innerHTML="";return;}
   box.innerHTML=`<label>Mese</label><select id="selFiltro"><option value="tutti">Tutti i mesi</option>${mesi.map(m=>`<option value="${m}" ${m===filtroMeseKey?"selected":""}>${meseLabel(m)}</option>`).join("")}</select><div style="height:10px"></div>`;
   $("#selFiltro").onchange=e=>{filtroMeseKey=e.target.value;renderLista();};
 }
