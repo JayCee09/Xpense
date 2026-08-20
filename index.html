@@ -265,6 +265,17 @@
   </div>
 </div>
 
+<!-- ===== SCHERMATA BENVENUTO (app non configurata) ===== -->
+<div class="authwrap hidden" id="authWelcome">
+  <div class="authcard" style="text-align:center">
+    <div class="authlogo"><i class="fa-solid fa-bolt"></i> XPENSE</div>
+    <p class="small muted" style="margin:8px 0 16px">Gestione rimborsi trasferta</p>
+    <p style="font-size:14px;line-height:1.5">Per iniziare, apri il <b>link di invito</b> che ti ha fornito l'amministratore: configura l'app in automatico e ti porta alla registrazione.</p>
+    <div style="height:18px"></div>
+    <div style="font-size:13px;color:var(--muted)">Sei l'amministratore? <a class="link" id="wConfig" style="cursor:pointer">Configura la connessione</a></div>
+  </div>
+</div>
+
 <!-- input fotocamera nascosto -->
 <input type="file" id="fileCam" accept="image/*" capture="environment" class="hidden" />
 
@@ -974,9 +985,10 @@ async function refreshAuth(){
   try{const {data}=await SB.auth.getUser();sbUser=(data&&data.user)||null;}catch(_){sbUser=null;}
   updateAuthUI();
 }
-function showAuthGate(show){ $("#authReg").classList.add("hidden"); $("#authGate").classList.toggle("hidden",!show); if(show){$("#gStatus").textContent="";updateAuthUI();} }
-function showLogin(){ $("#authReg").classList.add("hidden"); $("#authGate").classList.remove("hidden"); updateAuthUI(); }
-function showRegister(){ $("#gEmail").value&&($("#rEmail").value=$("#gEmail").value); $("#rStatus").textContent=""; $("#authGate").classList.add("hidden"); $("#authReg").classList.remove("hidden"); }
+function showAuthGate(show){ $("#authReg").classList.add("hidden"); $("#authWelcome").classList.add("hidden"); $("#authGate").classList.toggle("hidden",!show); if(show){$("#gStatus").textContent="";updateAuthUI();} }
+function showLogin(){ $("#authReg").classList.add("hidden"); $("#authWelcome").classList.add("hidden"); $("#authGate").classList.remove("hidden"); updateAuthUI(); }
+function showRegister(){ $("#authWelcome").classList.add("hidden"); $("#gEmail").value&&($("#rEmail").value=$("#gEmail").value); $("#rStatus").textContent=""; $("#authGate").classList.add("hidden"); $("#authReg").classList.remove("hidden"); }
+function showWelcome(){ $("#authGate").classList.add("hidden"); $("#authReg").classList.add("hidden"); $("#authWelcome").classList.remove("hidden"); }
 // ----- Link di invito con connessione incorporata (base64) -----
 function makeInviteLink(){
   if(!(CFG.sbUrl&&CFG.sbKey)){toast("Configura prima la connessione");return null;}
@@ -1003,7 +1015,7 @@ async function checkApproved(){
   }catch(e){ return {enabled:false,approved:true}; }
 }
 async function gateLogin(){
-  if(!SB){$("#gStatus").textContent="Sincronizzazione non configurata (Impostazioni).";return;}
+  if(!SB){$("#gStatus").textContent="App non configurata: apri il link di invito ricevuto dall'amministratore.";return;}
   const email=$("#gEmail").value.trim(),pw=$("#gPass").value;
   if(!email||!pw){$("#gStatus").textContent="Inserisci email e password.";return;}
   $("#gStatus").textContent="Accesso in corso…";
@@ -1015,7 +1027,7 @@ async function gateLogin(){
   toast("Accesso eseguito ✓"); await enterApp();
 }
 async function doRegister(){
-  if(!SB){$("#rStatus").textContent="Sincronizzazione non configurata (Impostazioni).";return;}
+  if(!SB){$("#rStatus").textContent="App non configurata: per registrarti apri il link di invito ricevuto dall'amministratore.";return;}
   const email=$("#rEmail").value.trim(), pw=$("#rPass").value, pw2=$("#rPass2").value, dip=$("#rDip").value.trim();
   if(!email||!pw){$("#rStatus").textContent="Inserisci email e password.";return;}
   if(pw.length<6){$("#rStatus").textContent="La password deve avere almeno 6 caratteri.";return;}
@@ -1043,7 +1055,9 @@ async function authLogout(){try{if(SB)await SB.auth.signOut();}catch(_){}sbUser=
 function isConfigured(){return !!(CFG.sbUrl&&CFG.sbKey);}
 function profileCompleto(){return !!(CFG.dip&&CFG.dip.trim());}
 function impSection(s){ $$("#segImp button").forEach(b=>b.classList.toggle("on",b.dataset.s===s)); $("#impGenerale").classList.toggle("hidden",s!=="gen"); $("#impAvanzate").classList.toggle("hidden",s!=="adv"); }
-function openSettings(){ showAuthGate(false); showTab("imp"); impSection("gen"); $("#btnImpBack").classList.toggle("hidden", !isConfigured()); }
+function hideAuthOverlays(){ $("#authGate").classList.add("hidden"); $("#authReg").classList.add("hidden"); $("#authWelcome").classList.add("hidden"); }
+function openSettings(){ hideAuthOverlays(); showTab("imp"); impSection("gen"); $("#btnImpBack").classList.remove("hidden"); }
+function openConnectionConfig(){ hideAuthOverlays(); showTab("imp"); impSection("adv"); $("#btnImpBack").classList.remove("hidden"); }
 // salva il profilo (dati anagrafici) anche nel cloud, così segue l'utente su tutti i dispositivi
 async function saveProfileCloud(){
   if(!SB||!sbUser)return;
@@ -1062,7 +1076,7 @@ async function enterApp(){
   syncNow(true);
 }
 async function route(){
-  if(!isConfigured()){ openSettings(); }        // 1° avvio senza parametri DB → inserimento dati
+  if(!isConfigured()){ showWelcome(); }          // non configurato → schermata benvenuto (usa il link di invito)
   else if(!sbUser){ showAuthGate(true); }        // configurato ma non loggato → login
   else { await enterApp(); }                     // loggato → app
 }
@@ -1136,6 +1150,7 @@ $("#btnSyncNow").onclick=()=>syncNow(false);
 $("#btnInvite").onclick=()=>{ const l=makeInviteLink(); if(!l)return; const f=$("#inviteLink"); f.value=l; f.classList.remove("hidden"); try{f.select();}catch(_){}; if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(l).then(()=>toast("Link di invito copiato ✓"),()=>toast("Link generato (copialo dal campo)"));}else{toast("Link generato (copialo dal campo)");} };
 // header + schermata accesso
 $("#hdrSettings").onclick=openSettings;
+$("#wConfig").onclick=openConnectionConfig;
 $$("#segImp button").forEach(b=>b.onclick=()=>impSection(b.dataset.s));
 $("#hdrAuth").onclick=()=>{ if(sbUser)authLogout(); else showAuthGate(true); };
 $("#btnImpBack").onclick=route;
