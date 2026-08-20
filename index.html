@@ -105,7 +105,7 @@
 <header>
   <div style="flex:1">
     <div class="logo"><i class="fa-solid fa-bolt"></i> Xpense</div>
-    <div class="sub" id="hdrSub">Bluenext · rimborsi trasferta</div>
+    <div class="sub" id="hdrSub">rimborsi trasferta</div>
   </div>
   <button class="iconbtn" id="hdrSettings" title="Impostazioni" aria-label="Impostazioni"><i class="fa-solid fa-gear"></i></button>
   <button class="iconbtn hidden" id="hdrAuth" title="Esci" aria-label="Esci"><i class="fa-solid fa-right-from-bracket"></i></button>
@@ -135,12 +135,12 @@
       <button class="btn big" id="btnGiust"><i class="fa-solid fa-paperclip"></i> Genera PDF giustificativi (scontrini)</button>
       <div style="height:10px"></div>
       <button class="btn big" id="btnExcel" style="background:linear-gradient(100deg,#F5F500,#00FFA3);color:#04131a"><i class="fa-solid fa-file-excel"></i> Genera nota spese Excel (.xlsm)</button>
-      <div class="infoline">È il tuo vero modulo Bluenext compilato. Aprilo in Excel e fai "Salva come PDF": otterrai un PDF identico all'originale.</div>
+      <div class="infoline">È il tuo vero modulo aziendale compilato. Aprilo in Excel e fai "Salva come PDF": otterrai un PDF identico all'originale.</div>
       <div style="height:10px"></div>
       <button class="btn big secondary" id="btnNota"><i class="fa-solid fa-file-pdf"></i> Genera PDF nota spese (anteprima)</button>
       <div style="height:14px"></div>
       <button class="btn big" id="btnMail"><i class="fa-solid fa-envelope"></i> Prepara e-mail con allegati</button>
-      <div class="infoline">Oggetto e testo vengono precompilati. Gli allegati (i 2 PDF) si aprono nel foglio di condivisione: scegli Outlook / Mail per completare l'invio a <b>speseetrasferte@bluenext.it</b>.</div>
+      <div class="infoline">Oggetto e testo vengono precompilati. Gli allegati (i 2 PDF) si aprono nel foglio di condivisione: scegli Outlook / Mail per completare l'invio all'indirizzo impostato nelle impostazioni.</div>
     </div>
   </section>
 
@@ -164,8 +164,12 @@
         <input id="cfgRes" />
         <label>Cliente / Sede predefinita</label>
         <input id="cfgCliente" />
+        <label>Azienda / Ragione sociale <span class="muted">(intestazione del PDF)</span></label>
+        <input id="cfgAzienda" />
+        <label>P.IVA azienda <span class="muted">(intestazione del PDF)</span></label>
+        <input id="cfgPiva" inputmode="numeric" />
         <label>E-mail destinatario rimborsi</label>
-        <input id="cfgEmail" />
+        <input id="cfgEmail" type="email" inputmode="email" autocapitalize="off" autocorrect="off" placeholder="es. rimborsi@tuaazienda.it" />
         <div style="height:8px"></div>
         <div class="row">
           <div><label>Tetto pranzo €</label><input id="cfgCapP" type="number" inputmode="decimal" step="0.01"/></div>
@@ -330,7 +334,7 @@
 // Connessione Supabase incorporata (la anon key è pubblica per progettazione: la sicurezza è data da RLS + approvazione)
 const SUPA_URL="https://hahymquzaekionsbkmqo.supabase.co";
 const SUPA_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhhaHltcXV6YWVraW9uc2JrbXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcxMzUzNDUsImV4cCI6MjEwMjcxMTM0NX0.T28KNjqSVmIoJomfrN1aPl-y_aQ2aP8PpLEgkd2wZLM";
-const DEFAULT_CFG={dip:"",cf:"",res:"",cliente:"Bluenext",email:"speseetrasferte@bluenext.it",capP:15,capC:25,sbUrl:SUPA_URL,sbKey:SUPA_KEY};
+const DEFAULT_CFG={dip:"",cf:"",res:"",azienda:"",piva:"",cliente:"",email:"",capP:15,capC:25,sbUrl:SUPA_URL,sbKey:SUPA_KEY};
 let CFG={...DEFAULT_CFG};
 const MESI=["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
 const GIORNI=["DOM","lun","mar","mer","gio","ven","SAB"];
@@ -713,8 +717,8 @@ function genGiustificativi(){
   return{doc,fn};
 }
 
-/* ============ PDF nota spese (modulo Bluenext, orizzontale) ============ */
-const AZIENDA={nome:"BLUENEXT SRL",piva:"04228480408",km:"0,55",divisa:"euro"};
+/* ============ PDF nota spese (modulo aziendale, orizzontale) ============ */
+const AZIENDA={km:"0,55",divisa:"euro"};   // nome e P.IVA arrivano dalle impostazioni (CFG.azienda / CFG.piva)
 function giorniMese(y,m){return new Date(y,m,0).getDate();}
 function buildDay(meals){
   const pr=meals.filter(m=>m.tipo==="pranzo"),ce=meals.filter(m=>m.tipo==="cena"),al=meals.filter(m=>m.tipo!=="pranzo"&&m.tipo!=="cena");
@@ -740,9 +744,9 @@ function genNotaSpese(){
     const ng=giorniMese(y,m);
     // ---- intestazione ----
     doc.setFont("helvetica","bold");doc.setFontSize(8);doc.setTextColor(30);
-    doc.text(AZIENDA.nome,ML,8);
+    doc.text(CFG.azienda||"",ML,8);
     doc.setFontSize(13);doc.text("Nota Spese",PW/2,9,{align:"center"});
-    doc.setFontSize(8);doc.text("P.IVA "+AZIENDA.piva,PW-MR,8,{align:"right"});
+    doc.setFontSize(8);doc.text(CFG.piva?"P.IVA "+CFG.piva:"",PW-MR,8,{align:"right"});
     doc.setDrawColor(120);doc.setLineWidth(.2);
     let hy=13;
     doc.setFont("helvetica","normal");doc.setFontSize(7.5);
@@ -925,13 +929,15 @@ async function loadCfg(){
   const c=await dbGet("cfg","main");if(c)CFG={...DEFAULT_CFG,...c.val};
   CFG.sbUrl=SUPA_URL; CFG.sbKey=SUPA_KEY;   // connessione sempre incorporata
   $("#cfgDip").value=CFG.dip;$("#cfgCF").value=CFG.cf||"";$("#cfgRes").value=CFG.res;$("#cfgCliente").value=CFG.cliente;
+  $("#cfgAzienda").value=CFG.azienda||"";$("#cfgPiva").value=CFG.piva||"";
   $("#cfgEmail").value=CFG.email;$("#cfgCapP").value=CFG.capP;$("#cfgCapC").value=CFG.capC;
-  $("#hdrSub").textContent="Bluenext · "+(CFG.dip||"rimborsi trasferta");
+  $("#hdrSub").textContent=CFG.dip||"rimborsi trasferta";
 }
 async function saveCfg(){
   CFG={...CFG,dip:$("#cfgDip").value.trim(),cf:$("#cfgCF").value.trim(),res:$("#cfgRes").value.trim(),cliente:$("#cfgCliente").value.trim(),
+    azienda:$("#cfgAzienda").value.trim(),piva:$("#cfgPiva").value.trim(),
     email:$("#cfgEmail").value.trim(),capP:parseFloat($("#cfgCapP").value)||15,capC:parseFloat($("#cfgCapC").value)||25};
-  await dbPut("cfg",{k:"main",val:CFG});$("#hdrSub").textContent="Bluenext · "+(CFG.dip||"rimborsi trasferta");
+  await dbPut("cfg",{k:"main",val:CFG});$("#hdrSub").textContent=CFG.dip||"rimborsi trasferta";
   renderAll();saveProfileCloud();toast("Impostazioni salvate ✓");
 }
 function exportBackup(){
@@ -1010,7 +1016,7 @@ async function doRegister(){
   $("#rStatus").textContent="Invio richiesta di registrazione…";
   // allega i dati anagrafici all'account già alla creazione: così ci sono anche se
   // il login immediato non è possibile (es. conferma email attiva) e su ogni dispositivo.
-  const profile={dip,cf,res,cliente:CFG.cliente,email:CFG.email,capP:CFG.capP,capC:CFG.capC};
+  const profile={dip,cf,res,azienda:CFG.azienda,piva:CFG.piva,cliente:CFG.cliente,email:CFG.email,capP:CFG.capP,capC:CFG.capC};
   const su=await SB.auth.signUp({email,password:pw,options:{data:{profile}}});
   if(su.error){$("#rStatus").textContent="Errore: "+su.error.message;return;}
   // salva i dati anagrafici in locale su questo dispositivo (compaiono in "Dati utente")
@@ -1037,7 +1043,7 @@ function openSettings(){ hideAuthOverlays(); showTab("imp"); impSection("gen"); 
 // salva il profilo (dati anagrafici) anche nel cloud, così segue l'utente su tutti i dispositivi
 async function saveProfileCloud(){
   if(!SB||!sbUser)return;
-  try{ await SB.auth.updateUser({data:{profile:{dip:CFG.dip,cf:CFG.cf,res:CFG.res,cliente:CFG.cliente,email:CFG.email,capP:CFG.capP,capC:CFG.capC}}}); }catch(_){}
+  try{ await SB.auth.updateUser({data:{profile:{dip:CFG.dip,cf:CFG.cf,res:CFG.res,azienda:CFG.azienda,piva:CFG.piva,cliente:CFG.cliente,email:CFG.email,capP:CFG.capP,capC:CFG.capC}}}); }catch(_){}
 }
 async function loadProfileCloud(){
   if(!sbUser)return;
