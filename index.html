@@ -1018,7 +1018,8 @@ async function doRegister(){
     CFG={...CFG,dip,cf:$("#rCf").value.trim(),res:$("#rRes").value.trim()};
     await dbPut("cfg",{k:"main",val:CFG}); await loadCfg();
     await saveProfileCloud();
-    try{ await SB.from("profiles").upsert({id:sbUser.id,email,approved:false}); }catch(_){}
+    // crea la riga profilo (se il trigger lato DB non l'ha già creata). Richiede la policy INSERT su profiles.
+    try{ const {error}=await SB.from("profiles").upsert({id:sbUser.id,email,approved:false},{onConflict:"id",ignoreDuplicates:true}); if(error)console.warn("profiles insert:",error.message); }catch(e){console.warn("profiles insert exc",e);}
     try{ await SB.auth.signOut(); }catch(_){}
     sbUser=null; updateAuthUI();
   }
