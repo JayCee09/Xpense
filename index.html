@@ -154,7 +154,7 @@
     <!-- ===== GENERALE ===== -->
     <div id="impGenerale">
       <div class="card">
-        <h2>Dati dipendente</h2>
+        <h2>Dati utente</h2>
         <label>Cognome e Nome</label>
         <input id="cfgDip" />
         <label>Codice Fiscale</label>
@@ -989,21 +989,25 @@ async function gateLogin(){
   toast("Accesso eseguito ✓"); await enterApp();
 }
 async function doRegister(){
-  if(!SB){$("#rStatus").textContent="App non configurata: per registrarti apri il link di invito ricevuto dall'amministratore.";return;}
-  const email=$("#rEmail").value.trim(), pw=$("#rPass").value, pw2=$("#rPass2").value, dip=$("#rDip").value.trim();
+  if(!SB){$("#rStatus").textContent="Connessione non disponibile: riprova tra qualche istante.";return;}
+  const email=$("#rEmail").value.trim(), pw=$("#rPass").value, pw2=$("#rPass2").value;
+  const dip=$("#rDip").value.trim(), cf=$("#rCf").value.trim(), res=$("#rRes").value.trim();
   if(!email||!pw){$("#rStatus").textContent="Inserisci email e password.";return;}
   if(pw.length<6){$("#rStatus").textContent="La password deve avere almeno 6 caratteri.";return;}
   if(pw!==pw2){$("#rStatus").textContent="Le password non coincidono.";return;}
   if(!dip){$("#rStatus").textContent="Inserisci almeno Cognome e Nome.";return;}
   $("#rStatus").textContent="Invio richiesta di registrazione…";
-  const su=await SB.auth.signUp({email,password:pw});
+  // allega i dati anagrafici all'account già alla creazione: così ci sono anche se
+  // il login immediato non è possibile (es. conferma email attiva) e su ogni dispositivo.
+  const profile={dip,cf,res,cliente:CFG.cliente,email:CFG.email,capP:CFG.capP,capC:CFG.capC};
+  const su=await SB.auth.signUp({email,password:pw,options:{data:{profile}}});
   if(su.error){$("#rStatus").textContent="Errore: "+su.error.message;return;}
-  // se possibile accedi per salvare il profilo, poi esci (l'account resta in attesa di approvazione)
+  // salva i dati anagrafici in locale su questo dispositivo (compaiono in "Dati utente")
+  CFG={...CFG,dip,cf,res}; await dbPut("cfg",{k:"main",val:CFG}); await loadCfg();
+  // prova ad accedere per registrare la riga profilo (l'account resta in attesa di approvazione)
   const si=await SB.auth.signInWithPassword({email,password:pw});
   if(!si.error){
     await refreshAuth();
-    CFG={...CFG,dip,cf:$("#rCf").value.trim(),res:$("#rRes").value.trim()};
-    await dbPut("cfg",{k:"main",val:CFG}); await loadCfg();
     await saveProfileCloud();
     // crea la riga profilo (se il trigger lato DB non l'ha già creata). Richiede la policy INSERT su profiles.
     try{ const {error}=await SB.from("profiles").upsert({id:sbUser.id,email,approved:false},{onConflict:"id",ignoreDuplicates:true}); if(error)console.warn("profiles insert:",error.message); }catch(e){console.warn("profiles insert exc",e);}
