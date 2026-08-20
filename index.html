@@ -178,23 +178,9 @@
     <!-- ===== AVANZATE ===== -->
     <div id="impAvanzate" class="hidden">
       <div class="card">
-        <h2 style="margin-bottom:6px">Invita un utente</h2>
-        <p class="small muted">Genera un link che contiene già la connessione: chi lo apre trova l'app pronta e deve solo registrarsi (poi lo approvi tu).</p>
-        <button class="btn ghost" id="btnInvite"><i class="fa-solid fa-user-plus"></i> Genera link di invito</button>
-        <input id="inviteLink" readonly class="hidden" style="margin-top:8px" onclick="this.select()"/>
-        <div class="infoline">La chiave "anon" di Supabase è pubblica per progettazione: i dati restano protetti da RLS e dalla tua approvazione, non dal segreto della chiave.</div>
-      </div>
-      <div class="card">
         <h2>Sincronizzazione multi-dispositivo</h2>
-        <p class="small muted">Allinea spese e foto tra telefono e PC tramite Supabase (gratis). Configurazione una tantum: segui la guida allegata.</p>
-        <label>Supabase Project URL</label>
-        <input id="cfgSbUrl" placeholder="https://xxxxx.supabase.co" autocapitalize="off" autocorrect="off"/>
-        <label>Supabase anon key (public)</label>
-        <input id="cfgSbKey" placeholder="eyJhbGciOi..." autocapitalize="off" autocorrect="off"/>
-        <div style="height:8px"></div>
-        <button class="btn" id="btnSaveSb">Salva connessione</button>
-        <div style="height:12px"></div>
-        <div class="small muted" id="authState">Sync non configurata</div>
+        <p class="small muted">Le tue spese e le foto sono allineate automaticamente su tutti i dispositivi con cui accedi con lo stesso account.</p>
+        <div class="small muted" id="authState">Non connesso</div>
         <div style="height:8px"></div>
         <button class="btn secondary" id="btnSyncNow"><i class="fa-solid fa-arrows-rotate"></i> Sincronizza ora</button>
         <div class="infoline" id="syncStatus"></div>
@@ -262,17 +248,6 @@
     <div class="infoline" id="rStatus"></div>
     <div style="height:10px"></div>
     <button class="btn ghost" id="rBack"><i class="fa-solid fa-arrow-left"></i> Torna al login</button>
-  </div>
-</div>
-
-<!-- ===== SCHERMATA BENVENUTO (app non configurata) ===== -->
-<div class="authwrap hidden" id="authWelcome">
-  <div class="authcard" style="text-align:center">
-    <div class="authlogo"><i class="fa-solid fa-bolt"></i> XPENSE</div>
-    <p class="small muted" style="margin:8px 0 16px">Gestione rimborsi trasferta</p>
-    <p style="font-size:14px;line-height:1.5">Per iniziare, apri il <b>link di invito</b> che ti ha fornito l'amministratore: configura l'app in automatico e ti porta alla registrazione.</p>
-    <div style="height:18px"></div>
-    <div style="font-size:13px;color:var(--muted)">Sei l'amministratore? <a class="link" id="wConfig" style="cursor:pointer">Configura la connessione</a></div>
   </div>
 </div>
 
@@ -351,7 +326,10 @@
 })();
 
 /* ============ Config ============ */
-const DEFAULT_CFG={dip:"",cf:"",res:"",cliente:"Bluenext",email:"speseetrasferte@bluenext.it",capP:15,capC:25,sbUrl:"",sbKey:""};
+// Connessione Supabase incorporata (la anon key è pubblica per progettazione: la sicurezza è data da RLS + approvazione)
+const SUPA_URL="https://hahymquzaekionsbkmqo.supabase.co";
+const SUPA_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhhaHltcXV6YWVraW9uc2JrbXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcxMzUzNDUsImV4cCI6MjEwMjcxMTM0NX0.T28KNjqSVmIoJomfrN1aPl-y_aQ2aP8PpLEgkd2wZLM";
+const DEFAULT_CFG={dip:"",cf:"",res:"",cliente:"Bluenext",email:"speseetrasferte@bluenext.it",capP:15,capC:25,sbUrl:SUPA_URL,sbKey:SUPA_KEY};
 let CFG={...DEFAULT_CFG};
 const MESI=["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
 const GIORNI=["DOM","lun","mar","mer","gio","ven","SAB"];
@@ -934,9 +912,9 @@ async function preparaMail(){
 /* ============ Impostazioni ============ */
 async function loadCfg(){
   const c=await dbGet("cfg","main");if(c)CFG={...DEFAULT_CFG,...c.val};
+  CFG.sbUrl=SUPA_URL; CFG.sbKey=SUPA_KEY;   // connessione sempre incorporata
   $("#cfgDip").value=CFG.dip;$("#cfgCF").value=CFG.cf||"";$("#cfgRes").value=CFG.res;$("#cfgCliente").value=CFG.cliente;
   $("#cfgEmail").value=CFG.email;$("#cfgCapP").value=CFG.capP;$("#cfgCapC").value=CFG.capC;
-  $("#cfgSbUrl").value=CFG.sbUrl||"";$("#cfgSbKey").value=CFG.sbKey||"";
   $("#hdrSub").textContent="Bluenext · "+(CFG.dip||"rimborsi trasferta");
 }
 async function saveCfg(){
@@ -985,25 +963,9 @@ async function refreshAuth(){
   try{const {data}=await SB.auth.getUser();sbUser=(data&&data.user)||null;}catch(_){sbUser=null;}
   updateAuthUI();
 }
-function showAuthGate(show){ $("#authReg").classList.add("hidden"); $("#authWelcome").classList.add("hidden"); $("#authGate").classList.toggle("hidden",!show); if(show){$("#gStatus").textContent="";updateAuthUI();} }
-function showLogin(){ $("#authReg").classList.add("hidden"); $("#authWelcome").classList.add("hidden"); $("#authGate").classList.remove("hidden"); updateAuthUI(); }
-function showRegister(){ $("#authWelcome").classList.add("hidden"); $("#gEmail").value&&($("#rEmail").value=$("#gEmail").value); $("#rStatus").textContent=""; $("#authGate").classList.add("hidden"); $("#authReg").classList.remove("hidden"); }
-function showWelcome(){ $("#authGate").classList.add("hidden"); $("#authReg").classList.add("hidden"); $("#authWelcome").classList.remove("hidden"); }
-// ----- Link di invito con connessione incorporata (base64) -----
-function makeInviteLink(){
-  if(!(CFG.sbUrl&&CFG.sbKey)){toast("Configura prima la connessione");return null;}
-  const payload=btoa(unescape(encodeURIComponent(JSON.stringify({u:CFG.sbUrl,k:CFG.sbKey}))));
-  return location.origin+location.pathname+"#invite="+encodeURIComponent(payload);
-}
-async function applyInvite(){
-  const m=(location.hash||"").match(/[#&]invite=([^&]+)/);
-  if(!m)return false;
-  try{
-    const obj=JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(m[1])))));
-    if(obj&&obj.u&&obj.k){ CFG={...CFG,sbUrl:obj.u,sbKey:obj.k}; await dbPut("cfg",{k:"main",val:CFG}); await loadCfg(); return true; }
-  }catch(e){}
-  return false;
-}
+function showAuthGate(show){ $("#authReg").classList.add("hidden"); $("#authGate").classList.toggle("hidden",!show); if(show){$("#gStatus").textContent="";updateAuthUI();} }
+function showLogin(){ $("#authReg").classList.add("hidden"); $("#authGate").classList.remove("hidden"); updateAuthUI(); }
+function showRegister(){ $("#gEmail").value&&($("#rEmail").value=$("#gEmail").value); $("#rStatus").textContent=""; $("#authGate").classList.add("hidden"); $("#authReg").classList.remove("hidden"); }
 // verifica lo stato di approvazione dell'account (se la tabella profiles non esiste, nessun blocco)
 async function checkApproved(){
   if(!SB||!sbUser)return {enabled:false,approved:true};
@@ -1055,9 +1017,8 @@ async function authLogout(){try{if(SB)await SB.auth.signOut();}catch(_){}sbUser=
 function isConfigured(){return !!(CFG.sbUrl&&CFG.sbKey);}
 function profileCompleto(){return !!(CFG.dip&&CFG.dip.trim());}
 function impSection(s){ $$("#segImp button").forEach(b=>b.classList.toggle("on",b.dataset.s===s)); $("#impGenerale").classList.toggle("hidden",s!=="gen"); $("#impAvanzate").classList.toggle("hidden",s!=="adv"); }
-function hideAuthOverlays(){ $("#authGate").classList.add("hidden"); $("#authReg").classList.add("hidden"); $("#authWelcome").classList.add("hidden"); }
+function hideAuthOverlays(){ $("#authGate").classList.add("hidden"); $("#authReg").classList.add("hidden"); }
 function openSettings(){ hideAuthOverlays(); showTab("imp"); impSection("gen"); $("#btnImpBack").classList.remove("hidden"); }
-function openConnectionConfig(){ hideAuthOverlays(); showTab("imp"); impSection("adv"); $("#btnImpBack").classList.remove("hidden"); }
 // salva il profilo (dati anagrafici) anche nel cloud, così segue l'utente su tutti i dispositivi
 async function saveProfileCloud(){
   if(!SB||!sbUser)return;
@@ -1076,8 +1037,7 @@ async function enterApp(){
   syncNow(true);
 }
 async function route(){
-  if(!isConfigured()){ showWelcome(); }          // non configurato → schermata benvenuto (usa il link di invito)
-  else if(!sbUser){ showAuthGate(true); }        // configurato ma non loggato → login
+  if(!sbUser){ showAuthGate(true); }             // non loggato → login/registrazione
   else { await enterApp(); }                     // loggato → app
 }
 function normalizeRow(s){return {id:s.id,data:s.data,tipo:s.tipo,importo:Number(s.importo)||0,cliente:s.cliente||"",comune:s.comune||"",persone:s.persone||1,carta:s.carta||"az",az:Number(s.az)||0,note:s.note||"",foto:s.foto||null,created:s.created||Date.now(),updated:s.updated||Date.now(),deleted:!!s.deleted};}
@@ -1145,12 +1105,9 @@ $("#fPersone").oninput=updateCap;
 $("#btnSalvaSpesa").onclick=salvaSpesa;
 $("#btnElimina").onclick=deleteSpesa;
 $("#btnSaveCfg").onclick=saveCfg;
-$("#btnSaveSb").onclick=async()=>{CFG={...CFG,sbUrl:$("#cfgSbUrl").value.trim(),sbKey:$("#cfgSbKey").value.trim()};await dbPut("cfg",{k:"main",val:CFG});initSupabase();await refreshAuth();toast("Connessione salvata");route();};
 $("#btnSyncNow").onclick=()=>syncNow(false);
-$("#btnInvite").onclick=()=>{ const l=makeInviteLink(); if(!l)return; const f=$("#inviteLink"); f.value=l; f.classList.remove("hidden"); try{f.select();}catch(_){}; if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(l).then(()=>toast("Link di invito copiato ✓"),()=>toast("Link generato (copialo dal campo)"));}else{toast("Link generato (copialo dal campo)");} };
 // header + schermata accesso
 $("#hdrSettings").onclick=openSettings;
-$("#wConfig").onclick=openConnectionConfig;
 $$("#segImp button").forEach(b=>b.onclick=()=>impSection(b.dataset.s));
 $("#hdrAuth").onclick=()=>{ if(sbUser)authLogout(); else showAuthGate(true); };
 $("#btnImpBack").onclick=route;
@@ -1173,13 +1130,9 @@ $("#btnMail").onclick=preparaMail;
   // chiedi al browser di NON cancellare i dati (storage persistente)
   try{ if(navigator.storage&&navigator.storage.persist){ await navigator.storage.persist(); } }catch(_){}
   try{
-    await openDB();await loadCfg();
-    const invited=await applyInvite();               // link di invito → auto-configura la connessione
-    if(invited)history.replaceState(null,"",location.pathname); // pulisci l'URL
-    await loadSpese();
+    await openDB();await loadCfg();await loadSpese();
     initSupabase();await refreshAuth();
-    if(invited && !sbUser){ showRegister(); }        // invito → vai dritto alla registrazione
-    else await route();                              // altrimenti: config mancante → dati; configurato → login; loggato → app
+    await route();   // non loggato → login/registrazione; loggato → app
   }catch(e){
     showTab("spese");
     toast("Attenzione: memoria non disponibile ("+(e&&e.message?e.message:e)+")");
