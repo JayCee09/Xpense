@@ -167,6 +167,13 @@
       <button class="btn" id="btnSaveCfg">Salva impostazioni</button>
     </div>
     <div class="card">
+      <h2 style="margin-bottom:6px">Invita un utente</h2>
+      <p class="small muted">Genera un link che contiene già la connessione: chi lo apre trova l'app pronta e deve solo registrarsi (poi lo approvi tu).</p>
+      <button class="btn ghost" id="btnInvite"><i class="fa-solid fa-user-plus"></i> Genera link di invito</button>
+      <input id="inviteLink" readonly class="hidden" style="margin-top:8px" onclick="this.select()"/>
+      <div class="infoline">La chiave "anon" di Supabase è pubblica per progettazione: i dati restano protetti da RLS e dalla tua approvazione, non dal segreto della chiave.</div>
+    </div>
+    <div class="card">
       <h2>Sincronizzazione multi-dispositivo</h2>
       <p class="small muted">Allinea spese e foto tra telefono e PC tramite Supabase (gratis). Configurazione una tantum: segui la guida allegata.</p>
       <label>Supabase Project URL</label>
@@ -181,13 +188,6 @@
       <button class="btn secondary" id="btnSyncNow"><i class="fa-solid fa-arrows-rotate"></i> Sincronizza ora</button>
       <div class="infoline" id="syncStatus"></div>
       <div style="height:14px"></div>
-    </div>
-    <div class="card">
-      <h2 style="margin-bottom:6px">Invita un utente</h2>
-      <p class="small muted">Genera un link che contiene già la connessione: chi lo apre trova l'app pronta e deve solo registrarsi (poi lo approvi tu).</p>
-      <button class="btn ghost" id="btnInvite"><i class="fa-solid fa-user-plus"></i> Genera link di invito</button>
-      <input id="inviteLink" readonly class="hidden" style="margin-top:8px" onclick="this.select()"/>
-      <div class="infoline">La chiave "anon" di Supabase è pubblica per progettazione: i dati restano protetti da RLS e dalla tua approvazione, non dal segreto della chiave.</div>
     </div>
     <div class="card">
       <h2>Dati e backup</h2>
